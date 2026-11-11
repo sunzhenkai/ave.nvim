@@ -24,7 +24,7 @@ nvim ── UDS(JSON-RPC/NDJSON) ── node bridge-helper ── MCP(stdio) ─
 ```lua
 -- lazy.nvim
 {
-  "wii/ave",
+  "sunzhenkai/ave.nvim",
   dependencies = {},
   config = function() require("ave").setup() end,
 }
@@ -88,6 +88,10 @@ bash tests/run.sh
 两段：`tests/e2e.lua`（纯 lua，路径栈/跳转/协议）和 `bridge-helper/test/e2e.mjs`（走真 MCP：
 `editor_context` → helper → UDS → nvim）。第二段会起一个真 nvim（`tests/host.lua`，需要带 UI 的终端，
 headless 下 UDS 回包会拖到 `vim.wait` 结束）和 clangd（LSP 用），缺了会失败。
+
+## 许可证
+
+[MIT](LICENSE)
 
 ## 文档
 

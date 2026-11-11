@@ -36,7 +36,7 @@ Agent 每次读/改文件，hook 从 stdin 拿 `tool_input.file_path`，推给�
 ```
 codex -c 'mcp_servers.ave.command="node"'
       -c 'mcp_servers.ave.args=["<helper>","mcp"]'
-      -c 'mcp_servers.ave.env={WORKBENCH_SOCKET="/run/user/1000/ave/4242.sock"}'
+      -c 'mcp_servers.ave.env={WORKBENCH_SOCKET="/run/user/<uid>/ave/4242.sock"}'
 ```
 
 `codex mcp list` 只验证配置解析、不连接、不 spawn，不能当连通性探针。真实验证用：
