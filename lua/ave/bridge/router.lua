@@ -55,7 +55,7 @@ for _, mode in ipairs({ "back", "forward" }) do
 end
 
 define("tour.set", function(p)
-  local res, err = require("ave.tour").set(p.blocks, p.title)
+  local res, err = require("ave.tour").set(p.blocks, p.title, p.append)
   if not res then
     error(err, 0)
   end

@@ -70,13 +70,23 @@ function M.step(delta)
   return M.goto(n)
 end
 
-function M.set(blocks, title)
-  local list = {}
+-- append: agent 分几次给块时接着往后排，不从头开始
+function M.set(blocks, title, append)
+  local list = append and M.active() and vim.deepcopy(M.list) or {}
+  local seen = {}
+  for _, b in ipairs(list) do
+    seen[b.file .. ":" .. b.line] = true
+  end
   for i, b in ipairs(blocks or {}) do
     local path = require("ave.editor").resolve(b.file)
     if not path then
       return nil, ("block %d: file is required"):format(i)
     end
+    local key = path .. ":" .. (b.line or 1)
+    if seen[key] then
+      goto continue
+    end
+    seen[key] = true
     list[#list + 1] = {
       index = #list + 1,
       file = path,
@@ -84,9 +94,16 @@ function M.set(blocks, title)
       end_line = b.end_line,
       note = b.note or b.title,
     }
+    ::continue::
   end
   if #list == 0 then
     return nil, "blocks is empty"
+  end
+  if append and M.active() then
+    M.list = list
+    M.title = M.title or title
+    M.show()
+    return { title = M.title, count = #list, current = { index = M.idx, total = #list } }
   end
   M.list, M.idx, M.title = list, 1, title
   M.show()
@@ -113,7 +130,6 @@ function M.clear()
         end
         pcall(vim.fn.setloclist, 0, {}, "r", { title = "", items = {} })
       end)
-      break
     end
   end
   M.win = nil

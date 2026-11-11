@@ -104,6 +104,10 @@ do
   check("tour goto", T.goto(3) and T.idx == 3)
   check("tour goto at edge", select(2, T.goto(9)):match("out of range") ~= nil)
   check("tour empty rejected", select(2, T.set({})) == "blocks is empty")
+  local ap = T.set({ { file = "lua/ave/init.lua", line = 3, note = "分批追加" } }, nil, true)
+  check("tour append keeps place", ap and ap.count == 4 and T.idx == 3, ap and ap.count)
+  local dup = T.set({ { file = "lua/ave/init.lua", line = 3 } }, nil, true)
+  check("tour append dedupes", dup and dup.count == 4, dup and dup.count)
   T.clear()
   -- 前面路径栈的 loclist 还在，只认 tour 自己的 "[n]" 条目
   local left = 0
