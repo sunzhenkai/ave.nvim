@@ -54,6 +54,37 @@ for _, mode in ipairs({ "back", "forward" }) do
   end)
 end
 
+define("tour.set", function(p)
+  local res, err = require("ave.tour").set(p.blocks, p.title)
+  if not res then
+    error(err, 0)
+  end
+  return res
+end)
+
+for _, step in ipairs({ { "next", 1 }, { "prev", -1 } }) do
+  define("tour." .. step[1], function()
+    local res, err = require("ave.tour").step(step[2])
+    if not res then
+      error(err, 0)
+    end
+    return res
+  end)
+end
+
+define("tour.goto", function(p)
+  local res, err = require("ave.tour").goto(p.index)
+  if not res then
+    error(err, 0)
+  end
+  return res
+end)
+
+define("tour.clear", function()
+  require("ave.tour").clear()
+  return { ok = true }
+end)
+
 function M.handle(method, params)
   local h = handlers[method]
   if not h then

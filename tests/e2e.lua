@@ -75,6 +75,48 @@ ex.reset()
 check("load restores", ex.load() and #ex.stack == saved, #ex.stack .. "/" .. saved)
 check("load keeps index", ex.idx <= #ex.stack)
 
+-- 业务导览：块列表、前后跳、指定块、解释贴在编辑区
+local T = require("ave.tour")
+do
+  local r = T.set({
+    { file = "lua/ave/config.lua", line = 5, note = "默认配置入口" },
+    { file = "lua/ave/state.lua", line = 10, end_line = 20, note = "socket 路径" },
+    { file = "lua/ave/ui/layout.lua", line = 30, note = "布局" },
+  }, "自检导览")
+  check("tour sets blocks", r and r.count == 3, r)
+  check("tour starts at first", T.idx == 1)
+  local items
+  for _, w in ipairs(vim.api.nvim_list_wins()) do
+    local l = vim.fn.getloclist(w)
+    if #l > 0 then
+      items = l
+    end
+  end
+  items = items or {}
+  check("tour lists blocks", #items == 3 and items[1].text:match("^%[1%]") ~= nil, #items)
+  check("tour note pinned", #vim.api.nvim_buf_get_extmarks(
+    vim.fn.bufnr(vim.fn.getcwd() .. "/lua/ave/config.lua"),
+    vim.api.nvim_create_namespace("ave_note"), 0, -1, {}
+  ) == 1)
+  check("tour next", T.step(1) and T.idx == 2)
+  check("tour prev", T.step(-1) and T.idx == 1)
+  check("tour prev at edge", select(2, T.step(-1)) == "already at the first block")
+  check("tour goto", T.goto(3) and T.idx == 3)
+  check("tour goto at edge", select(2, T.goto(9)):match("out of range") ~= nil)
+  check("tour empty rejected", select(2, T.set({})) == "blocks is empty")
+  T.clear()
+  -- 前面路径栈的 loclist 还在，只认 tour 自己的 "[n]" 条目
+  local left = 0
+  for _, w in ipairs(vim.api.nvim_list_wins()) do
+    for _, it in ipairs(vim.fn.getloclist(w)) do
+      if (it.text or ""):match("^%[%d+%]") then
+        left = left + 1
+      end
+    end
+  end
+  check("tour cleared", T.active() == false and left == 0, left)
+end
+
 -- 全屏：面板 buffer 进独立 tab，退出后原布局还在
 local L = require("ave.ui.layout")
 do

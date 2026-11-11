@@ -7,8 +7,9 @@
 | plugin host | `lua/ave/` | 布局、会话、命令、键位 |
 | bridge server | `lua/ave/bridge/server.lua` | nvim 内 UDS 服务，NDJSON + JSON-RPC 2.0 |
 | router | `lua/ave/bridge/router.lua` | 方法白名单 → handler |
-| editor | `lua/ave/editor/state.lua` | 工作窗口判定、定位、高亮 |
+| editor | `lua/ave/editor/init.lua` | 定位、snippet 兜底、高亮、LSP 查询 |
 | helper | `bridge-helper/index.mjs` | MCP stdio server + 一次性 `call` |
+| tour | `lua/ave/tour/init.lua` | 业务导览：块列表（loclist）、解释（virt_lines）、按块前进 |
 
 ## 连接与路由
 
@@ -36,7 +37,8 @@ NDJSON，一行一条 JSON-RPC 2.0 消息。请求带 `params.session`，便于�
 ```
 
 方法白名单（`bridge/router.lua`）：`ping`、`editor.context`、`editor.open`、`editor.highlight`、
-`editor.lsp`、`explore.path`、`explore.back`、`explore.forward`。
+`editor.lsp`、`explore.path`、`explore.back`、`explore.forward`、
+`tour.set`、`tour.next`、`tour.prev`、`tour.goto`、`tour.clear`。
 不存在 method 通配、没有 `nvim_exec_lua` 入口。
 
 ## 实现约束（踩过的）

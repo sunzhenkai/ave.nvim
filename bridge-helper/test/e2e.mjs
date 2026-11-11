@@ -51,6 +51,18 @@ check("lsp definition finds target", (def.json?.items ?? []).some((i) => i.line 
 const refs = await call("editor_lsp", { kind: "references", file: "tests/lsp_fixture/a.c", line: 1, column: 5 });
 check("lsp references find call site", (refs.json?.items ?? []).some((i) => i.file.endsWith("b.c")), refs.json ?? refs.text);
 
+const tour = await call("editor_tour", {
+  title: "自检导览",
+  blocks: [
+    { file: "lua/ave/config.lua", line: 5, note: "默认配置" },
+    { file: "lua/ave/state.lua", line: 10, note: "socket 路径" },
+  ],
+});
+check("tour installs blocks", tour.json?.count === 2 && tour.json?.current?.index === 1, tour.json ?? tour.text);
+
+const prev = await call("explore_path", { mode: "list" });
+check("tour leaves explore path alone", prev.json?.total >= 2, prev.json);
+
 const bad = await call("editor_lsp", { kind: "nope" });
 check("lsp rejects unknown kind", bad.isError === true, bad.text);
 

@@ -142,6 +142,7 @@ if (sub === "hook") {
         "When you locate an implementation the user asked about, call editor_open so the editor follows you instead of pasting code.",
         "Pass snippet (one stable unique line of code) together with line; it survives edits and tells you when a line number went stale.",
         "For multi-file walkthroughs, call editor_open for each hop; those hops become the shared exploration path the user can step through with explore_path back/forward.",
+        "When you are about to walk the user through a business flow, first ask in chat whether to show it in the editor, then call editor_tour with the ordered blocks. Each block is one file plus a line range plus one or two sentences of explanation. Do not send a tour the user did not agree to.",
       ].join(" "),
     },
   );
@@ -202,6 +203,26 @@ if (sub === "hook") {
         .describe("Defaults to list"),
     },
     (args) => run(PATH_METHOD[args.mode ?? "list"], {}),
+  );
+
+  server.tool(
+    "editor_tour",
+    "Show an ordered business-flow walkthrough in the editor: one loclist of blocks plus the explanation pinned above each block's code. Ask the user first; only call this after they agree.",
+    {
+      title: z.string().optional().describe("Short name of the flow, e.g. '下单校验链路'"),
+      blocks: z
+        .array(
+          z.object({
+            file: z.string().describe("Absolute path or path relative to the workspace root"),
+            line: z.number().int().positive().optional().describe("1-based first line of the block"),
+            end_line: z.number().int().positive().optional().describe("1-based last line of the block"),
+            note: z.string().describe("Why this block matters, one or two sentences"),
+          }),
+        )
+        .min(1)
+        .describe("Ordered blocks; the user walks them with prev/next"),
+    },
+    (args) => run("tour.set", { title: args.title, blocks: args.blocks }),
   );
 
   await server.connect(new StdioServerTransport());

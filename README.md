@@ -10,10 +10,11 @@ nvim ── UDS(JSON-RPC/NDJSON) ── node bridge-helper ── MCP(stdio) ─
 
 ## 状态
 
-`0.1.0`：布局 + 终端 + 桥 + `editor_context` / `editor_open` / `editor_highlight` / `explore_path` / `editor_lsp`，三个 Agent 的接入壳都有。
+`0.1.0`：布局 + 终端 + 桥 + `editor_context` / `editor_open` / `editor_highlight` / `explore_path` / `editor_lsp` / `editor_tour`，三个 Agent 的接入壳都有。
 
 - 探索路径栈可用，按工作区落盘（`stdpath("state")/ave/path-<hash>.json`），重开 nvim 能接着走。
 - Claude Code 有被动跟随（`PostToolUse` hook 把自己的读写自动压进路径），不依赖 Agent 主动调工具。
+- 业务导览（tour）：Agent 一次给出排好序的跳转块（文件 + 行范围 + 解释），人按块往前走，`3<leader>ag` 直达第 3 块。
 - Codex 只走主动工具调用；Pi 需要 `:Ave install pi`，且没有被动通道。
 
 ## 安装
@@ -51,6 +52,9 @@ Claude Code 和 Codex 不需要装到全局：`ave` 用 `--mcp-config` / `-c` �
 :Ave forward          " 前进一步
 :Ave path             " 路径扔进 loclist，可跳选
 :Ave full             " 面板全屏 / 退出全屏
+:Ave tour             " 重开当前业务导览的块列表
+:Ave tour off         " 收起导览
+:Ave goto 3           " 跳到导览第 3 块
 ```
 
 默认键位（可在 `setup()` 里覆盖）：
@@ -62,9 +66,13 @@ Claude Code 和 Codex 不需要装到全局：`ave` 用 `--mcp-config` / `-c` �
 | `<leader>a]` | 路径前进 |
 | `<leader>al` | 路径 loclist |
 | `<leader>aF` | 面板全屏（独立 tab，原分屏布局不动） |
+| `<leader>ag` | 导览下一块；`3<leader>ag` 直达第 3 块（无计数时提示输入） |
 | `<leader>as` | 把当前选区（或光标行）以 `@file:Lx-Ly` 送进 Agent 终端 |
 | `Esc Esc`（面板内） | 退出 terminal-mode 回 normal；单击 `Esc` 原样送给 Agent（它是 Agent 的取消键） |
 | `i` / `a`（面板 normal） | 回到 Agent 输入 |
+
+导览（tour）和探索路径（path）是两件事：path 是全自动压栈的历史（含 Claude 的被动跟随），
+tour 是 Agent 先问过你、再一次性推送的线性脚本。导览激活时 `<leader>a[` / `<leader>a]` 走导览，否则走路径。
 
 Agent 侧无需手动配置，`ave` 会按 Agent 自己的方式注册 MCP server（见 [docs/agents.md](docs/agents.md)）。
 
