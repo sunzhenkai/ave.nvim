@@ -1,0 +1,3 @@
+bridge-helper/node_modules/
+*.sock
+.DS_Store

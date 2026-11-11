@@ -1,0 +1,104 @@
+-- 右侧终端面板。只负责窗口/缓冲区/进程，不碰 agent 语义。
+local M = {}
+
+local state = { win = nil, buf = nil, job = nil, work_win = nil }
+
+local function valid_win(w)
+  return w ~= nil and vim.api.nvim_win_is_valid(w)
+end
+
+function M.work_win()
+  if valid_win(state.work_win) then
+    return state.work_win
+  end
+  -- 没有记录时：取一个非终端窗口，避免把内容塞进 agent 面板
+  for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    if w ~= state.win then
+      return w
+    end
+  end
+  return vim.api.nvim_get_current_win()
+end
+
+function M.set_work_win(w)
+  state.work_win = w
+end
+
+function M.is_open()
+  return valid_win(state.win) and state.job ~= nil
+end
+
+function M.open(spec)
+  if M.is_open() then
+    return state.win, state.buf, state.job
+  end
+  local cols = vim.o.columns
+  local width = math.max(20, math.floor(cols * (spec.width or 0.4)))
+  if not valid_win(state.win) then
+    local prev = vim.api.nvim_get_current_win()
+    vim.cmd("botright " .. width .. "vsplit")
+    state.win = vim.api.nvim_get_current_win()
+    -- vsplit 触发的 WinEnter 会把新窗口记成工作窗口，这里纠正回原窗口
+    if valid_win(prev) and prev ~= state.win then
+      state.work_win = prev
+    end
+  end
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_win_set_buf(state.win, buf)
+  vim.api.nvim_win_set_width(state.win, width)
+  vim.wo[state.win].number = false
+  vim.wo[state.win].signcolumn = "no"
+  vim.wo[state.win].winfixwidth = true
+
+  local job = vim.fn.jobstart(spec.cmd, {
+    term = true,
+    cwd = spec.cwd,
+    -- 空 table 会被当成 list，E475
+    env = (spec.env and next(spec.env)) and spec.env or nil,
+    on_exit = function(_, code)
+      if state.buf == buf then
+        state.buf, state.job = nil, nil
+      end
+      if code ~= 0 then
+        vim.schedule(function()
+          vim.notify("ave: agent exited with " .. tostring(code), vim.log.levels.WARN)
+        end)
+      end
+    end,
+  })
+  if job <= 0 then
+    vim.api.nvim_buf_delete(buf, { force = true })
+    return nil, "failed to start: " .. table.concat(spec.cmd, " ")
+  end
+  state.buf, state.job = buf, job
+  vim.bo[buf].filetype = "ave-agent"
+  if not spec.focus then
+    vim.api.nvim_set_current_win(M.work_win())
+  end
+  return state.win, state.buf, state.job
+end
+
+function M.close()
+  if state.job then
+    pcall(vim.fn.jobstop, state.job)
+  end
+  if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
+    pcall(vim.api.nvim_buf_delete, state.buf, { force = true })
+  end
+  if valid_win(state.win) then
+    pcall(vim.api.nvim_win_close, state.win, true)
+  end
+  state.job, state.buf, state.win = nil, nil, nil
+end
+
+function M.focus()
+  if valid_win(state.win) then
+    vim.api.nvim_set_current_win(state.win)
+  end
+end
+
+function M.back()
+  vim.api.nvim_set_current_win(M.work_win())
+end
+
+return M

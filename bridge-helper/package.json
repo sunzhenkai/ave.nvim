@@ -1,0 +1,17 @@
+{
+  "name": "ave-bridge-helper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP stdio server + Neovim bridge client for ave",
+  "bin": {
+    "ave-bridge-helper": "index.mjs"
+  },
+  "scripts": {
+    "check": "node index.mjs ping"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^3.25.76"
+  }
+}
