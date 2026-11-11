@@ -2,6 +2,7 @@
 local M = {}
 
 function M.spec(sess, cfg)
+  -- shortcut: 路径含双引号会破坏 TOML 内联表，按无特殊字符处理
   local args = {
     "-c",
     'mcp_servers.ave.command="' .. cfg.node .. '"',

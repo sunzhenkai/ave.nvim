@@ -8,7 +8,23 @@ local function plugin_root()
   return f:gsub("/lua/ave/init%.lua$", "")
 end
 
+function M.register_commands()
+  if vim.fn.exists(":Ave") == 2 then
+    return
+  end
+  vim.api.nvim_create_user_command("Ave", function(a)
+    M.dispatch(a.fargs)
+  end, {
+    nargs = "*",
+    complete = function()
+      return { "open", "close", "toggle", "stop", "status", "install" }
+    end,
+    desc = "ave: native agent panel",
+  })
+end
+
 function M.setup(opts)
+  M.register_commands()
   local cfg = require("ave.config").setup(opts)
   if not cfg.helper then
     local root = plugin_root()
