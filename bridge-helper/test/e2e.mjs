@@ -1,4 +1,8 @@
 // 走 MCP stdio → helper → UDS → nvim，验证真链接
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
@@ -65,6 +69,21 @@ check("tour leaves explore path alone", prev.json?.total >= 2, prev.json);
 
 const bad = await call("editor_lsp", { kind: "nope" });
 check("lsp rejects unknown kind", bad.isError === true, bad.text);
+
+// 没带 WORKBENCH_SOCKET（agent 从终端起）时自己找桥：用临时 XDG 目录围起来，免得碰到用户的 nvim
+const disc = mkdtempSync(join(tmpdir(), "ave-disc-"));
+mkdirSync(join(disc, "ave"), { recursive: true });
+symlinkSync(socket, join(disc, "ave", "x.sock"));
+const bare = { ...process.env, XDG_RUNTIME_DIR: disc, XDG_STATE_HOME: join(disc, "state") };
+delete bare.WORKBENCH_SOCKET;
+const found = spawnSync(process.execPath, [helper, "ping"], { env: bare, encoding: "utf8" });
+check("discovers socket without env", found.status === 0 && /"ok":true/.test(found.stdout), found.stdout + found.stderr);
+
+const empty = await spawnSync(process.execPath, [helper, "ping"], {
+  env: { ...bare, XDG_RUNTIME_DIR: join(disc, "none") },
+  encoding: "utf8",
+});
+check("reports missing bridge", empty.status === 1 && /没找到 ave 桥/.test(empty.stderr), empty.stderr);
 
 await client.close();
 console.log(fails === 0 ? "ALL PASS" : "FAILED " + fails);
