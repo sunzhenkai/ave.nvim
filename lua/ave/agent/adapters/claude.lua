@@ -37,7 +37,9 @@ function M.spec(sess, cfg)
   if sess.settings then
     vim.list_extend(cmd, { "--settings", sess.settings })
   end
-  return { cmd = cmd, cwd = sess.root }
+  return { cmd = cmd, cwd = sess.root, cleanup = function()
+    vim.fn.delete(dir, "rf")
+  end }
 end
 
 return M

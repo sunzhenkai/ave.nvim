@@ -98,6 +98,12 @@ function M.open(p)
     end_line = end_line + (line - want)
   end
   local win = require("ave.ui.layout").work_win()
+  -- 跳转前记进窗口的 jumplist，用户可以用 <C-o> 回来
+  if vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(win)) ~= path then
+    pcall(vim.api.nvim_win_call, win, function()
+      vim.cmd("normal! m'")
+    end)
+  end
   vim.api.nvim_win_set_buf(win, buf)
   vim.api.nvim_win_set_cursor(win, { line, 0 })
   if p.focus then
@@ -108,6 +114,108 @@ function M.open(p)
     require("ave.explore").push(p, { file = path, line = line, end_line = end_line })
   end
   return { ok = true, file = path, line = line, end_line = end_line, stale = stale or nil }
+end
+
+local LSP_METHODS = {
+  definition = "textDocument/definition",
+  references = "textDocument/references",
+  symbols = "textDocument/documentSymbol",
+  implementations = "textDocument/implementation",
+}
+
+-- Location / LocationLink / DocumentSymbol 都收成 {file, line, ...}
+local function location_items(result, out, default_file)
+  if type(result) ~= "table" then
+    return
+  end
+  for _, item in pairs(result) do
+    local uri = item.uri or item.targetUri
+    local range = item.range or item.targetSelectionRange or item.targetRange
+    if uri and range then
+      out[#out + 1] = {
+        file = vim.uri_to_fname(uri),
+        line = range.start.line + 1,
+        column = range.start.character + 1,
+        end_line = range["end"].line + 1,
+      }
+    elseif item.name then
+      local r = item.selectionRange or item.range
+      local file = (item.location and item.location.uri and vim.uri_to_fname(item.location.uri)) or default_file
+      if r then
+        out[#out + 1] = { file = file, line = r.start.line + 1, name = item.name, kind = item.kind }
+      end
+    end
+  end
+end
+
+function M.lsp(p)
+  local kind = p.kind or "definition"
+  local method = LSP_METHODS[kind]
+  if not method then
+    return nil, "unknown kind: " .. tostring(kind) .. " (definition|references|symbols|implementations)"
+  end
+  local buf = vim.api.nvim_get_current_buf()
+  if p.file then
+    local path = M.resolve(p.file)
+    if not path then
+      return nil, "file is required"
+    end
+    buf = vim.fn.bufadd(path)
+    M.navigating = true
+    vim.fn.bufload(buf)
+    M.navigating = false
+    if vim.bo[buf].filetype == "" then
+      vim.bo[buf].filetype = vim.filetype.match({ filename = path }) or ""
+    end
+  end
+  local line, col = p.line, p.column
+  if not line then
+    local cur = vim.api.nvim_win_get_cursor(0)
+    line, col = cur[1], cur[2] + 1
+  end
+  -- 目标 buffer 可能还没挂 client（bufadd 出来的），退回到当前 buffer 的 client：
+  -- 请求按 URI 定位文档，只要文件在磁盘上就能查
+  local clients = vim.lsp.get_clients({ bufnr = buf })
+  if #clients == 0 then
+    clients = vim.lsp.get_clients()
+  end
+  if #clients == 0 then
+    return nil, "no LSP client attached to " .. vim.api.nvim_buf_get_name(buf) .. " (fall back to search)"
+  end
+  local params = {
+    textDocument = { uri = vim.uri_from_bufnr(buf) },
+    position = { line = (line or 1) - 1, character = (col or 1) - 1 },
+  }
+  if kind == "references" then
+    params.context = { includeDeclaration = true }
+  end
+  -- 目标 buffer 没挂 client 时补挂：否则 server 没收到 didOpen，references 这类
+  -- 需要已解析文件的请求会返回空
+  for _, c in ipairs(clients) do
+    if not vim.lsp.buf_is_attached(buf, c.id) then
+      pcall(vim.lsp.buf_attach_client, buf, c.id)
+    end
+  end
+  local results, pending = {}, #clients
+  for _, c in ipairs(clients) do
+    c:request(method, params, function(_, result)
+      results[c.id] = result
+      pending = pending - 1
+    end)
+  end
+  vim.wait(3000, function()
+    return pending <= 0
+  end)
+  local out = {}
+  for _, result in pairs(results) do
+    location_items(result, out, vim.api.nvim_buf_get_name(buf))
+  end
+  local limit = p.limit or 50
+  local truncated = #out > limit
+  while #out > limit do
+    table.remove(out)
+  end
+  return { ok = true, kind = kind, count = #out, truncated = truncated or nil, items = out }
 end
 
 function M.highlight(p)

@@ -41,6 +41,35 @@ function M.reset()
   M.stack, M.idx = {}, 0
 end
 
+local function store_path()
+  local st = require("ave.state")
+  local name = vim.fn.sha256(st.root or vim.fn.getcwd()):sub(1, 16)
+  return vim.fn.stdpath("state") .. "/ave/path-" .. name .. ".json"
+end
+
+function M.save()
+  if #M.stack == 0 then
+    return
+  end
+  local file = store_path()
+  vim.fn.mkdir(vim.fs.dirname(file), "p", "0700")
+  vim.fn.writefile({ vim.json.encode({ root = require("ave.state").root, index = M.idx, entries = M.stack }) }, file)
+end
+
+function M.load()
+  local ok, data = pcall(vim.fn.readfile, store_path())
+  if not ok or not data[1] then
+    return false
+  end
+  local ok2, body = pcall(vim.json.decode, data[1])
+  if not ok2 or type(body.entries) ~= "table" then
+    return false
+  end
+  M.stack = body.entries
+  M.idx = math.min(math.max(body.index or 0, 0), #M.stack)
+  return #M.stack > 0
+end
+
 local function jump(e)
   return function()
     require("ave.editor").open({

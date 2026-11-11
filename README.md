@@ -10,7 +10,11 @@ nvim ── UDS(JSON-RPC/NDJSON) ── node bridge-helper ── MCP(stdio) ─
 
 ## 状态
 
-`0.1.0`：布局 + 终端 + 桥 + `editor_context` / `editor_open` / `editor_highlight` / `explore_path`，三个 Agent 的接入壳都有。跨文件探索路径栈已可用（进程内，退出即丢）；LSP 工具、被动跟随未做。
+`0.1.0`：布局 + 终端 + 桥 + `editor_context` / `editor_open` / `editor_highlight` / `explore_path` / `editor_lsp`，三个 Agent 的接入壳都有。
+
+- 探索路径栈可用，按工作区落盘（`stdpath("state")/ave/path-<hash>.json`），重开 nvim 能接着走。
+- Claude Code 有被动跟随（`PostToolUse` hook 把自己的读写自动压进路径），不依赖 Agent 主动调工具。
+- Codex 只走主动工具调用；Pi 需要 `:Ave install pi`，且没有被动通道。
 
 ## 安装
 
@@ -56,8 +60,19 @@ Claude Code 和 Codex 不需要装到全局：`ave` 用 `--mcp-config` / `-c` �
 | `<leader>a[` | 路径后退 |
 | `<leader>a]` | 路径前进 |
 | `<leader>al` | 路径 loclist |
+| `<leader>as` | 把当前选区（或光标行）以 `@file:Lx-Ly` 送进 Agent 终端 |
 
 Agent 侧无需手动配置，`ave` 会按 Agent 自己的方式注册 MCP server（见 [docs/agents.md](docs/agents.md)）。
+
+## 测试
+
+```bash
+bash tests/run.sh
+```
+
+两段：`tests/e2e.lua`（纯 lua，路径栈/跳转/协议）和 `bridge-helper/test/e2e.mjs`（走真 MCP：
+`editor_context` → helper → UDS → nvim）。第二段会起一个真 nvim（`tests/host.lua`，需要带 UI 的终端，
+headless 下 UDS 回包会拖到 `vim.wait` 结束）和 clangd（LSP 用），缺了会失败。
 
 ## 文档
 

@@ -36,7 +36,7 @@ NDJSON，一行一条 JSON-RPC 2.0 消息。请求带 `params.session`，便于�
 ```
 
 方法白名单（`bridge/router.lua`）：`ping`、`editor.context`、`editor.open`、`editor.highlight`、
-`explore.path`、`explore.back`、`explore.forward`。
+`editor.lsp`、`explore.path`、`explore.back`、`explore.forward`。
 不存在 method 通配、没有 `nvim_exec_lua` 入口。
 
 ## 实现约束（踩过的）
@@ -59,9 +59,38 @@ NDJSON，一行一条 JSON-RPC 2.0 消息。请求带 `params.session`，便于�
 - 同一位置连续打开不重复压栈。
 - 后退后再从 agent 打开新位置，会丢弃指针之后的分支（和浏览器后退后重新点击一致）。
 - `:Ave path` 把栈灌进 loclist，只读视图，不写文件。
-- 栈只在进程内，退出即丢；跨会话持久化留到有真实需要时再加。
+- 栈按工作区落盘：`stdpath("state")/ave/path-<sha256(root) 前 16 位>.json`，退出时保存、起桥后读回。
+  同行同文件不重复、位置和标题都存，重开 nvim 接着走。
+
+## 代码智能
+
+`editor_lsp`（`lua/ave/editor/init.lua` 的 `M.lsp`）不自己解析代码，全部转发给 Neovim 的 LSP client：
+
+- `kind`：`definition` / `references` / `symbols` / `implementations`，映射到对应 LSP 方法。
+- 返回统一成 `{file, line, column, end_line}`（Definition/LocationLink/DocumentSymbol 三种形状都收），
+  最多 50 条，超出打 `truncated`。
+- 目标文件没挂 client 时（agent 报的文件可能用户从没打开过），退回当前 buffer 的 client——
+  LSP 请求按 URI 定位文档，server 照常能查；缺 filetype 就补 `vim.filetype.match`，缺 client 就
+  `vim.lsp.buf_attach_client`（否则 server 没收到 didOpen，`references` 会返回空）。
+- 没有 client 就明确报错让 Agent 退回 grep，不静默返回空列表。
+
+pyright 有个坑：nvim 0.12 + pyright 1.1.401 下 `initialize`/`initialized`/`didOpen` 都正常，但 server
+发起 `textDocument/diagnostic` 后再无响应，之后所有请求（包括 `buf_request` 发出的）全部超时。
+所以测试用 clangd 做 LSP 端到端，不在项目里做绕过。
+
+## 被动跟随
+
+Agent 主动调 `editor_open` 是「拉」；「推」这条通道按 Agent 各自实现：
+
+- **Claude Code**：启动时写一份临时 `settings.json`，注册 `PostToolUse` hook
+  （`matcher: Read|Edit|Write|MultiEdit|NotebookEdit`），hook 进程把 `tool_input.file_path` 通过同一个
+  socket 发 `editor.open`。hook 继承了 `WORKBENCH_SOCKET`，所以不用额外传参。失败静默、2 秒超时、
+  不阻塞 Agent。
+- **Codex**：没有等价的 hook 接口，只有主动工具调用。
+- **Pi**：没找到 hook 机制，暂不接。
 
 ## 状态归属
 
 nvim 独占所有状态：Session 表、工作窗口、高亮 namespace、探索路径。Helper 无状态，Agent 无状态。
-目前除 claude 的临时 `mcp.json` 外不落盘；路径栈在内存里，退出即丢。
+路径栈按工作区落盘，Claude 的 `mcp.json` / `settings.json` 写在 `stdpath("cache")/ave/session-<id>/`，
+退出时清目录。

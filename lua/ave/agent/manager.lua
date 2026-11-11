@@ -6,6 +6,10 @@ function M.start(name)
   local cfg = require("ave.config")
   local opts = cfg.get()
   name = name or opts.agent
+  -- 单面板：换 agent 前先收掉旧的，否则旧进程变孤儿
+  if M.is_running() then
+    M.stop()
+  end
   local ok, err = require("ave.bridge").ensure()
   if not ok then
     return nil, err
@@ -31,7 +35,7 @@ function M.start(name)
     st.stop_session(sess)
     return nil, buf
   end
-  sess.win, sess.buf, sess.job = win, buf, job
+  sess.win, sess.buf, sess.job, sess.cleanup = win, buf, job, spec.cleanup
   st.current = sess
   return sess
 end
@@ -39,6 +43,9 @@ end
 function M.stop()
   local sess = st.current
   require("ave.ui.layout").close()
+  if sess and sess.cleanup then
+    pcall(sess.cleanup)
+  end
   st.stop_session(sess)
 end
 

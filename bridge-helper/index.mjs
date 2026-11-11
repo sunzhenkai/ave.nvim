@@ -137,6 +137,7 @@ if (sub === "hook") {
     {
       instructions: [
         "This server is attached to the user's Neovim session.",
+        "Prefer editor_lsp over grep when you need a definition or all references: it uses the language server the user already has.",
         "Call editor_context before answering questions about 'this file', 'the current selection', or 'where the user is'.",
         "When you locate an implementation the user asked about, call editor_open so the editor follows you instead of pasting code.",
         "Pass snippet (one stable unique line of code) together with line; it survives edits and tells you when a line number went stale.",
@@ -163,6 +164,19 @@ if (sub === "hook") {
       focus: z.boolean().optional().describe("Move the user's cursor into the target window"),
     },
     (args) => run("editor.open", args),
+  );
+
+  server.tool(
+    "editor_lsp",
+    "Ask the editor's language server instead of grepping: definition, references, implementations, or document symbols. Returns file/line items. Fails when no LSP client is attached, in which case fall back to plain search.",
+    {
+      kind: z.enum(["definition", "references", "implementations", "symbols"]).default("definition"),
+      file: z.string().optional().describe("Defaults to the current buffer"),
+      line: z.number().int().positive().optional().describe("1-based; defaults to the cursor line"),
+      column: z.number().int().positive().optional(),
+      limit: z.number().int().positive().optional().describe("Max items, default 50"),
+    },
+    (args) => run("editor.lsp", args),
   );
 
   server.tool(

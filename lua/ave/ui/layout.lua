@@ -56,14 +56,14 @@ function M.open(spec)
     -- 空 table 会被当成 list，E475
     env = (spec.env and next(spec.env)) and spec.env or nil,
     on_exit = function(_, code)
-      if state.buf == buf then
-        state.buf, state.job = nil, nil
-      end
-      if code ~= 0 then
-        vim.schedule(function()
+      vim.schedule(function()
+        if code ~= 0 then
           vim.notify("ave: agent exited with " .. tostring(code), vim.log.levels.WARN)
-        end)
-      end
+        end
+        if state.buf == buf then
+          M.close()
+        end
+      end)
     end,
   })
   if job <= 0 then
@@ -79,6 +79,11 @@ function M.open(spec)
 end
 
 function M.close()
+  -- 关自己触发 on_exit 时不要再进来一次
+  if state.closing then
+    return
+  end
+  state.closing = true
   if state.job then
     pcall(vim.fn.jobstop, state.job)
   end
@@ -89,6 +94,16 @@ function M.close()
     pcall(vim.api.nvim_win_close, state.win, true)
   end
   state.job, state.buf, state.win = nil, nil, nil
+  state.closing = false
+end
+
+-- 往 agent 终端粘文本（不回车）：用户主动把选区送给 agent 时用
+function M.send(text)
+  if not state.job then
+    return nil, "agent is not running"
+  end
+  vim.fn.chansend(state.job, text)
+  return true
 end
 
 function M.focus()

@@ -31,6 +31,14 @@ define("editor.highlight", function(p)
   return res
 end)
 
+define("editor.lsp", function(p)
+  local res, err = require("ave.editor").lsp(p)
+  if not res then
+    error(err, 0)
+  end
+  return res
+end)
+
 define("explore.path", function()
   local stack, idx = require("ave.explore").entries()
   return { index = idx, total = #stack, entries = stack }

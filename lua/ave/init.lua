@@ -17,7 +17,7 @@ function M.register_commands()
   end, {
     nargs = "*",
     complete = function()
-      return { "open", "close", "toggle", "stop", "status", "install", "back", "forward", "path" }
+      return { "open", "close", "toggle", "stop", "status", "install", "back", "forward", "path", "send" }
     end,
     desc = "ave: native agent panel",
   })
@@ -66,6 +66,7 @@ function M.setup(opts)
       { cfg.keys.back, "back", "ave: path back" },
       { cfg.keys.forward, "forward", "ave: path forward" },
       { cfg.keys.path, "path", "ave: path list" },
+      { cfg.keys.send, "send", "ave: send selection to agent" },
     }
     for _, b in ipairs(binds) do
       if b[1] then
@@ -80,6 +81,29 @@ end
 
 local function notify(msg, level)
   vim.notify("ave: " .. msg, level or vim.log.levels.INFO)
+end
+
+-- 把选区（或当前行）变成 "@相对路径:Lx-Ly " 粘进 agent 输入框，不自动回车
+local function send_selection()
+  local layout = require("ave.ui.layout")
+  if not layout.is_open() then
+    return nil, "agent is not running"
+  end
+  local buf = vim.api.nvim_get_current_buf()
+  local path = vim.api.nvim_buf_get_name(buf)
+  if path == "" then
+    return nil, "current buffer has no file"
+  end
+  local rel = vim.fs.relpath(require("ave.state").root or vim.fn.getcwd(), path) or path
+  local s = vim.api.nvim_buf_get_mark(buf, "<")
+  local e = vim.api.nvim_buf_get_mark(buf, ">")
+  local range
+  if s[1] > 0 and e[1] >= s[1] then
+    range = s[1] == e[1] and (":L" .. s[1]) or (":L" .. s[1] .. "-L" .. e[1])
+  else
+    range = ":L" .. vim.api.nvim_win_get_cursor(0)[1]
+  end
+  return layout.send("@" .. rel .. range .. " ")
 end
 
 local function install_helper(cfg)
@@ -119,6 +143,11 @@ function M.dispatch(args)
       notify(tostring(err), vim.log.levels.WARN)
     else
       notify(("%s %d/%d "):format(sub, res.index, res.total) .. vim.fn.fnamemodify(res.file, ":t"), vim.log.levels.INFO)
+    end
+  elseif sub == "send" then
+    local res, err = send_selection()
+    if not res then
+      notify(tostring(err), vim.log.levels.WARN)
     end
   elseif sub == "path" then
     local res, err = require("ave.explore").loclist()

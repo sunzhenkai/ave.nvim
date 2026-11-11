@@ -16,6 +16,9 @@ function M.ensure()
     return nil, err
   end
   st.server = server
+  pcall(function()
+    require("ave.explore").load()
+  end)
   return true
 end
 
