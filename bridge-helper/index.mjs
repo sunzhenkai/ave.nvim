@@ -107,7 +107,7 @@ if (sub === "call" || sub === "ping") {
         "Call editor_context before answering questions about 'this file', 'the current selection', or 'where the user is'.",
         "When you locate an implementation the user asked about, call editor_open so the editor follows you instead of pasting code.",
         "Pass snippet (one stable unique line of code) together with line; it survives edits and tells you when a line number went stale.",
-        "For multi-file walkthroughs, call editor_open for each hop so the user can follow the path in the editor.",
+        "For multi-file walkthroughs, call editor_open for each hop; those hops become the shared exploration path the user can step through with explore_path back/forward.",
       ].join(" "),
     },
   );
@@ -141,6 +141,20 @@ if (sub === "call" || sub === "ping") {
       end_line: z.number().int().positive(),
     },
     (args) => run("editor.highlight", args),
+  );
+
+  const PATH_METHOD = { list: "explore.path", back: "explore.back", forward: "explore.forward" };
+
+  server.tool(
+    "explore_path",
+    "Shared exploration path: every file you opened is one hop. mode=list returns the hops; back/forward move the user along them.",
+    {
+      mode: z
+        .enum(["list", "back", "forward"])
+        .optional()
+        .describe("Defaults to list"),
+    },
+    (args) => run(PATH_METHOD[args.mode ?? "list"], {}),
   );
 
   await server.connect(new StdioServerTransport());

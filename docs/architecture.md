@@ -35,7 +35,8 @@ NDJSON，一行一条 JSON-RPC 2.0 消息。请求带 `params.session`，便于�
 {"jsonrpc":"2.0","id":"1","result":{"ok":true,"file":"/abs/lua/ave/init.lua","line":12}}
 ```
 
-方法白名单（`bridge/router.lua`）：`ping`、`editor.context`、`editor.open`、`editor.highlight`。
+方法白名单（`bridge/router.lua`）：`ping`、`editor.context`、`editor.open`、`editor.highlight`、
+`explore.path`、`explore.back`、`explore.forward`。
 不存在 method 通配、没有 `nvim_exec_lua` 入口。
 
 ## 实现约束（踩过的）
@@ -48,7 +49,17 @@ NDJSON，一行一条 JSON-RPC 2.0 消息。请求带 `params.session`，便于�
    输入框打字时不会被抢走。要真跳过去才传 `focus=true`。
 5. **高亮用 extmark namespace**，不用 `matchadd`（切 buffer 就没了）。
 
+## 探索路径
+
+`lua/ave/explore/init.lua` 是一个栈，不是图：每次 `editor.open`（非路径回放）压一项
+`{file, line, end_line, title}`，`back` / `forward` 只移动指针并按记录重放跳转。
+
+- 同一位置连续打开不重复压栈。
+- 后退后再从 agent 打开新位置，会丢弃指针之后的分支（和浏览器后退后重新点击一致）。
+- `:Ave path` 把栈灌进 loclist，只读视图，不写文件。
+- 栈只在进程内，退出即丢；跨会话持久化留到有真实需要时再加。
+
 ## 状态归属
 
 nvim 独占所有状态：Session 表、工作窗口、高亮 namespace、探索路径。Helper 无状态，Agent 无状态。
-持久化只写 `stdpath("state")/ave/` 下的 JSON，退出时落盘。
+目前除 claude 的临时 `mcp.json` 外不落盘；路径栈在内存里，退出即丢。

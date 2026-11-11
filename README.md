@@ -10,7 +10,7 @@ nvim ── UDS(JSON-RPC/NDJSON) ── node bridge-helper ── MCP(stdio) ─
 
 ## 状态
 
-`0.1.0`：骨架通了。布局 + 终端 + 桥 + `editor_context` / `editor_open` / `editor_highlight`，三个 Agent 的接入壳都有；探索路径栈、LSP 工具、被动跟随未做。
+`0.1.0`：布局 + 终端 + 桥 + `editor_context` / `editor_open` / `editor_highlight` / `explore_path`，三个 Agent 的接入壳都有。跨文件探索路径栈已可用（进程内，退出即丢）；LSP 工具、被动跟随未做。
 
 ## 安装
 
@@ -43,9 +43,19 @@ Claude Code 和 Codex 不需要装到全局：`ave` 用 `--mcp-config` / `-c` �
 :Ave toggle
 :Ave stop             " 结束当前 agent 进程
 :Ave status           " 看 helper / socket / 会话状态
+:Ave back             " 沿探索路径后退一步
+:Ave forward          " 前进一步
+:Ave path             " 路径扔进 loclist，可跳选
 ```
 
-默认键位（可在 `setup()` 里覆盖）：`<leader>aa` 开关面板。
+默认键位（可在 `setup()` 里覆盖）：
+
+| 键 | 动作 |
+|---|---|
+| `<leader>aa` | 开关 Agent 面板 |
+| `<leader>a[` | 路径后退 |
+| `<leader>a]` | 路径前进 |
+| `<leader>al` | 路径 loclist |
 
 Agent 侧无需手动配置，`ave` 会按 Agent 自己的方式注册 MCP server（见 [docs/agents.md](docs/agents.md)）。
 

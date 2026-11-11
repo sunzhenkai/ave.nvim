@@ -17,7 +17,7 @@ function M.register_commands()
   end, {
     nargs = "*",
     complete = function()
-      return { "open", "close", "toggle", "stop", "status", "install" }
+      return { "open", "close", "toggle", "stop", "status", "install", "back", "forward", "path" }
     end,
     desc = "ave: native agent panel",
   })
@@ -52,9 +52,19 @@ function M.setup(opts)
   })
 
   if cfg.keys and cfg.keys.toggle then
-    vim.keymap.set("n", cfg.keys.toggle, function()
-      M.dispatch({ "toggle" })
-    end, { desc = "ave: toggle agent panel" })
+    local binds = {
+      { cfg.keys.toggle, "toggle", "ave: toggle agent panel" },
+      { cfg.keys.back, "back", "ave: path back" },
+      { cfg.keys.forward, "forward", "ave: path forward" },
+      { cfg.keys.path, "path", "ave: path list" },
+    }
+    for _, b in ipairs(binds) do
+      if b[1] then
+        vim.keymap.set("n", b[1], function()
+          M.dispatch({ b[2] })
+        end, { desc = b[3] })
+      end
+    end
   end
   return cfg
 end
@@ -93,6 +103,18 @@ function M.dispatch(args)
     local sess, err = manager.toggle()
     if sess == nil and err then
       notify(tostring(err), vim.log.levels.ERROR)
+    end
+  elseif sub == "back" or sub == "forward" then
+    local res, err = require("ave.explore")[sub]()
+    if not res then
+      notify(tostring(err), vim.log.levels.WARN)
+    else
+      notify(("%s %d/%d "):format(sub, res.index, res.total) .. vim.fn.fnamemodify(res.file, ":t"), vim.log.levels.INFO)
+    end
+  elseif sub == "path" then
+    local res, err = require("ave.explore").loclist()
+    if not res then
+      notify(tostring(err), vim.log.levels.WARN)
     end
   elseif sub == "close" or sub == "stop" then
     manager.stop()

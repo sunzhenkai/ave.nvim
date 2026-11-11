@@ -18,7 +18,7 @@ end)
 define("editor.open", function(p)
   local res, err = require("ave.editor").open(p)
   if not res then
-    error(err or "open failed")
+    error(err or "open failed", 0)
   end
   return res
 end)
@@ -26,10 +26,25 @@ end)
 define("editor.highlight", function(p)
   local res, err = require("ave.editor").highlight(p)
   if not res then
-    error(err or "highlight failed")
+    error(err or "highlight failed", 0)
   end
   return res
 end)
+
+define("explore.path", function()
+  local stack, idx = require("ave.explore").entries()
+  return { index = idx, total = #stack, entries = stack }
+end)
+
+for _, mode in ipairs({ "back", "forward" }) do
+  define("explore." .. mode, function()
+    local res, err = require("ave.explore")[mode]()
+    if not res then
+      error(err or (mode .. " failed"), 0)
+    end
+    return res
+  end)
+end
 
 function M.handle(method, params)
   local h = handlers[method]

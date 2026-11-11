@@ -102,6 +102,9 @@ function M.open(p)
     vim.api.nvim_set_current_win(win)
   end
   M.mark(buf, line, math.max(line, end_line or line))
+  if not p.from_path then
+    require("ave.explore").push(p, { file = path, line = line, end_line = end_line })
+  end
   return { ok = true, file = path, line = line, end_line = end_line, stale = stale or nil }
 end
 
