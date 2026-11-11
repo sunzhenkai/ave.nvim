@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 // ave bridge helper: MCP stdio server + Neovim UDS client.
 // 子命令 `ping` / `call <method> [json]` 用于无 agent 时手工排查链路。
+import fs from "node:fs";
 import net from "node:net";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const socketPath = process.env.WORKBENCH_SOCKET;
+// 从 nvim 里 :Ave 起的 agent 带 WORKBENCH_SOCKET；从终端起的没带，靠自己找
+const pinned = process.env.WORKBENCH_SOCKET;
+let socketPath = pinned ?? null;
 const DEFAULT_TIMEOUT_MS = 5000;
 
 let seq = 0;
@@ -14,17 +17,101 @@ let conn = null;
 let buf = "";
 const pending = new Map();
 
-function connect() {
-  if (conn) return Promise.resolve(conn);
-  if (!socketPath) return Promise.reject(new Error("WORKBENCH_SOCKET is not set"));
+function socket_dirs() {
+  const dirs = [];
+  if (process.env.XDG_RUNTIME_DIR) dirs.push(process.env.XDG_RUNTIME_DIR + "/ave");
+  const state = process.env.XDG_STATE_HOME || (process.env.HOME ? process.env.HOME + "/.local/state" : null);
+  if (state) dirs.push(state + "/nvim/run/ave");
+  return dirs;
+}
+
+function real(path) {
+  try {
+    return fs.realpathSync(path);
+  } catch {
+    return path;
+  }
+}
+
+// 只有答得出 editor.context 的才算活桥，避免捡到 nvim 退出后残留的 sock 文件
+function probe(path) {
+  return new Promise((resolve) => {
+    const c = net.createConnection(path);
+    let b = "";
+    const finish = (v) => {
+      clearTimeout(timer);
+      c.destroy();
+      resolve(v);
+    };
+    const timer = setTimeout(() => finish(null), 400);
+    c.setEncoding("utf8");
+    c.once("error", () => finish(null));
+    c.on("connect", () => c.write(JSON.stringify({ jsonrpc: "2.0", id: "probe", method: "editor.context", params: {} }) + "\n"));
+    c.on("data", (chunk) => {
+      b += chunk;
+      const i = b.indexOf("\n");
+      if (i < 0) return;
+      try {
+        finish(JSON.parse(b.slice(0, i)).result ?? null);
+      } catch {
+        finish(null);
+      }
+    });
+  });
+}
+
+// 优先 cwd 与 nvim 根目录一致的实例；只有一个活的且对不上时才用它，多个就拒绝猜
+async function discover() {
+  const socks = [];
+  for (const dir of socket_dirs()) {
+    try {
+      for (const f of fs.readdirSync(dir)) {
+        if (f.endsWith(".sock")) socks.push(dir + "/" + f);
+      }
+    } catch {
+      // 目录不存在：这台机没开过 ave
+    }
+  }
+  const cwd = real(process.cwd());
+  const alive = [];
+  for (const path of socks.slice(0, 8)) {
+    const ctx = await probe(path);
+    if (!ctx?.root) continue;
+    const root = real(ctx.root);
+    if (root === cwd) return path;
+    alive.push({ path, root });
+  }
+  const near = alive.find((a) => cwd.startsWith(a.root + "/"));
+  if (near) return near.path;
+  return alive.length === 1 ? alive[0].path : null;
+}
+
+async function ensureSocket() {
+  if (socketPath) return socketPath;
+  socketPath = await discover();
+  if (!socketPath) {
+    throw new Error(
+      "没找到 ave 桥：从 nvim 执行 :Ave pi 启动，或设置 WORKBENCH_SOCKET（已扫 " + socket_dirs().join(", ") + "）",
+    );
+  }
+  return socketPath;
+}
+
+async function connect() {
+  if (conn) return conn;
+  const path = await ensureSocket();
   return new Promise((resolve, reject) => {
-    const c = net.createConnection(socketPath);
+    const c = net.createConnection(path);
     c.setEncoding("utf8");
     c.once("connect", () => {
       conn = c;
       resolve(c);
     });
-    c.once("error", reject);
+    c.once("error", (e) => {
+      // 发现的路径可能已被 nvim 重启换掉：下次调用重新找
+      if (!pinned && socketPath === path) socketPath = null;
+      reject(e);
+    });
     c.on("data", (chunk) => {
       buf += chunk;
       let i;
@@ -102,7 +189,7 @@ function readStdin() {
 async function hook() {
   try {
     const raw = await readStdin();
-    if (!raw.trim() || !socketPath) return;
+    if (!raw.trim()) return;
     const ev = JSON.parse(raw);
     const input = ev.tool_input ?? {};
     const file = input.file_path ?? input.notebook_path;
