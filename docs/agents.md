@@ -19,6 +19,16 @@
 
 启动命令加 `--mcp-config <该文件> --strict-mcp-config`，避免和其他来源的 MCP 混在一起。
 
+同一目录下还写 `settings.json` 带一个 `PostToolUse` hook，实现被动跟随：
+
+```json
+{"hooks":{"PostToolUse":[{"matcher":"Read|Edit|Write|MultiEdit|NotebookEdit",
+  "hooks":[{"type":"command","command":"WORKBENCH_SOCKET='<sock>' node <helper> hook"}]}]}}
+```
+
+Agent 每次读/改文件，hook 从 stdin 拿 `tool_input.file_path`，推给编辑器跳转。实测：
+`claude -p` 读两个文件后，路径栈里正好两项。hook 失败一律静默，不阻塞 Agent。
+
 ## codex
 
 不写文件，直接命令行覆盖（值按 TOML 解析）：
@@ -29,7 +39,16 @@ codex -c 'mcp_servers.ave.command="node"'
       -c 'mcp_servers.ave.env={WORKBENCH_SOCKET="/run/user/1000/ave/4242.sock"}'
 ```
 
-`codex mcp list` 只验证配置解析、不连接、不 spawn，不能当连通性探针。
+`codex mcp list` 只验证配置解析、不连接、不 spawn，不能当连通性探针。真实验证用：
+
+```
+codex -c ... exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox '<prompt>'
+```
+
+实测 `editor_context` 调用成功，回包是工作区根。stdio 握手时 codex 会打一条
+`rmcp::transport::worker ... Unexpected content type` 的 ERROR，但工具调用正常，可忽略。
+
+codex 没有 hook 机制，被动跟随做不了；只能等它的 JSONL 事件流或让 Agent 主动调 `editor_open`。
 
 ## pi
 
