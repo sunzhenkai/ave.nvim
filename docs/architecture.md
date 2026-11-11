@@ -47,7 +47,9 @@ NDJSON，一行一条 JSON-RPC 2.0 消息。请求带 `params.session`，便于�
 3. **UDS 路径上限 108 字节**，别塞深目录。
 4. **跳转不能抢焦点。** `editor.open` 默认 `focus=false`：在工作窗口换 buffer、设光标；用户在 Agent
    输入框打字时不会被抢走。要真跳过去才传 `focus=true`。
-5. **高亮用 extmark namespace**，不用 `matchadd`（切 buffer 就没了）。
+5. **遗留 swap 文件会让 `bufload` 弹模态框**，agent 的跳转一旦命中就卡住整个桥。`editor.open`
+   期间置 `M.navigating`，`SwapExists` autocmd 里据此把 `v:swapchoice` 设成 `e`（照常打开，不动 swap）。
+6. **高亮用 extmark namespace**，不用 `matchadd`（切 buffer 就没了）。
 
 ## 探索路径
 

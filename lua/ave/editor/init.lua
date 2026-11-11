@@ -79,7 +79,9 @@ function M.open(p)
     return nil, "file is required"
   end
   local buf = vim.fn.bufadd(path)
+  M.navigating = true
   vim.fn.bufload(buf)
+  M.navigating = false
   local want = tonumber(p.line) or 1
   local line, stale = want, nil
   if p.snippet and p.snippet ~= "" then
@@ -114,7 +116,9 @@ function M.highlight(p)
     return nil, "file is required"
   end
   local buf = vim.fn.bufadd(path)
+  M.navigating = true
   vim.fn.bufload(buf)
+  M.navigating = false
   local start_line = math.max(tonumber(p.start_line) or 1, 1)
   local end_line = math.max(tonumber(p.end_line) or start_line, start_line)
   M.mark(buf, start_line, end_line)

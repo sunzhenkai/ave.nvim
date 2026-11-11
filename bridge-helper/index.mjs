@@ -87,16 +87,49 @@ async function run(method, params) {
   }
 }
 
+function readStdin() {
+  return new Promise((resolve) => {
+    let buf = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (c) => (buf += c));
+    process.stdin.on("end", () => resolve(buf));
+    process.stdin.on("error", () => resolve(buf));
+  });
+}
+
+// Claude Code PostToolUse hook: 从工具调用里取文件，把编辑器跟着移过去。
+// 任何失败都不输出、不阻塞 agent。
+async function hook() {
+  try {
+    const raw = await readStdin();
+    if (!raw.trim() || !socketPath) return;
+    const ev = JSON.parse(raw);
+    const input = ev.tool_input ?? {};
+    const file = input.file_path ?? input.notebook_path;
+    if (!file) return;
+    const params = { file, focus: false };
+    if (Number.isInteger(input.offset) && input.offset > 0) params.line = input.offset;
+    else if (Number.isInteger(input.line)) params.line = input.line;
+    await call("editor.open", params, 2000);
+  } catch {
+    // 桥没起来或 nvim 已退出：静默
+  }
+}
+
 const [sub, a, b] = process.argv.slice(2);
 
-if (sub === "call" || sub === "ping") {
+if (sub === "hook") {
+  await hook();
+  process.exit(0);
+} else if (sub === "call" || sub === "ping") {
   const method = sub === "ping" ? "ping" : a;
   const params = sub === "ping" ? {} : b ? JSON.parse(b) : {};
   try {
     process.stdout.write(JSON.stringify(await call(method, params)) + "\n");
+    process.exit(0);
   } catch (e) {
     process.stderr.write(String(e.message ?? e) + "\n");
-    process.exitCode = 1;
+    process.exit(1);
   }
 } else {
   const server = new McpServer(

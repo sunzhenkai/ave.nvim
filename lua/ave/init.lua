@@ -43,6 +43,15 @@ function M.setup(opts)
       end
     end,
   })
+  -- 跳转遇到遗留 swap 文件时不要弹模态框：agent 触发的跳转不该卡住编辑器
+  vim.api.nvim_create_autocmd("SwapExists", {
+    group = group,
+    callback = function()
+      if require("ave.editor").navigating then
+        vim.v.swapchoice = "e"
+      end
+    end,
+  })
   vim.api.nvim_create_autocmd("VimLeavePre", {
     group = group,
     callback = function()
