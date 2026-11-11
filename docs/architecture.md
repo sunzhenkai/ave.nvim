@@ -49,7 +49,10 @@ NDJSON，一行一条 JSON-RPC 2.0 消息。请求带 `params.session`，便于�
    输入框打字时不会被抢走。要真跳过去才传 `focus=true`。
 5. **遗留 swap 文件会让 `bufload` 弹模态框**，agent 的跳转一旦命中就卡住整个桥。`editor.open`
    期间置 `M.navigating`，`SwapExists` autocmd 里据此把 `v:swapchoice` 设成 `e`（照常打开，不动 swap）。
-6. **高亮用 extmark namespace**，不用 `matchadd`（切 buffer 就没了）。
+6. **terminal-mode 的 `Esc` 归 Agent。** 面板 buffer 上 `t` 模式映射 `<Esc>`：单击 `chansend` 把字节
+   原样送进 Agent 的 pty，300ms 内第二击才发 `<C-\><C-n>` 回 normal。直接映射成 `<C-\><C-n>` 会让
+   Agent 的取消键失效。normal mode 里再映射 `i`/`a` 到 `:startinsert`，否则回到面板里打不了字。
+7. **高亮用 extmark namespace**，不用 `matchadd`（切 buffer 就没了）。
 
 ## 探索路径
 

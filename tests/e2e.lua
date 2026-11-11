@@ -75,5 +75,20 @@ ex.reset()
 check("load restores", ex.load() and #ex.stack == saved, #ex.stack .. "/" .. saved)
 check("load keeps index", ex.idx <= #ex.stack)
 
+-- agent 面板的终端键位：Esc 单击给 agent、双击回 normal，i/a 回 terminal-mode
+local tbuf = vim.api.nvim_create_buf(false, true)
+require("ave.ui.layout").map_term(tbuf, 0, {})
+local function has_map(mode, lhs)
+  for _, m in ipairs(vim.api.nvim_buf_get_keymap(tbuf, mode)) do
+    if m.lhs == lhs then
+      return true
+    end
+  end
+  return false
+end
+check("term mode maps Esc", has_map("t", "<Esc>"))
+check("normal mode maps i", has_map("n", "i"))
+check("normal mode maps a", has_map("n", "a"))
+
 io.stdout:write(fails == 0 and "ALL PASS\n" or ("FAILED " .. fails .. "\n"))
 vim.cmd(fails == 0 and "qa!" or "cq!")

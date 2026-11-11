@@ -30,6 +30,7 @@ function M.start(name)
     AVE_ROOT = sess.root,
   }, spec.env or {})
   spec.width = opts.width
+  spec.esc_double = opts.esc_double
   local win, buf, job = require("ave.ui.layout").open(spec)
   if not win then
     st.stop_session(sess)

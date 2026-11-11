@@ -28,6 +28,34 @@ function M.is_open()
   return valid_win(state.win) and state.job ~= nil
 end
 
+-- Esc 是 agent 自己的键（中断/取消），不能直接霸占；双击 Esc 才退出
+-- terminal-mode，单击原样送给 agent
+local last_esc = 0
+
+function M.map_term(buf, job, spec)
+  local double = not (spec and spec.esc_double == false)
+  vim.keymap.set("t", "<Esc>", function()
+    local now = vim.uv.now()
+    if double and last_esc > 0 and now - last_esc < 300 then
+      last_esc = 0
+      vim.api.nvim_feedkeys(
+        vim.api.nvim_replace_termcodes("<C-\\><C-n>", true, false, true),
+        "n",
+        false
+      )
+      return
+    end
+    last_esc = now
+    vim.fn.chansend(job, "\27")
+  end, { buffer = buf, silent = true, desc = "ave: Esc 给 agent，双击回 normal" })
+  -- terminal buffer 的 normal mode 里 i/a 不会自动回到 terminal-mode
+  for _, k in ipairs({ "i", "a" }) do
+    vim.keymap.set("n", k, function()
+      vim.cmd("startinsert")
+    end, { buffer = buf, silent = true, desc = "ave: 回到 agent 输入" })
+  end
+end
+
 function M.open(spec)
   if M.is_open() then
     return state.win, state.buf, state.job
@@ -72,6 +100,7 @@ function M.open(spec)
   end
   state.buf, state.job = buf, job
   vim.bo[buf].filetype = "ave-agent"
+  M.map_term(buf, job, spec)
   if not spec.focus then
     vim.api.nvim_set_current_win(M.work_win())
   end

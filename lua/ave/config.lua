@@ -5,6 +5,7 @@ M.defaults = {
   width = 0.25,
   -- 打开面板后把焦点留在编辑器；用户在 agent 输入框里打字时不会被抢走
   focus_on_open = false,
+  esc_double = true, -- agent 面板里双击 Esc 回 normal mode，单击原样给 agent
   node = "node",
   helper = nil,
   socket_dir = nil,
