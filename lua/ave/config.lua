@@ -2,7 +2,7 @@ local M = {}
 
 M.defaults = {
   agent = "claude",
-  width = 0.4,
+  width = 0.25,
   -- 打开面板后把焦点留在编辑器；用户在 agent 输入框里打字时不会被抢走
   focus_on_open = false,
   node = "node",

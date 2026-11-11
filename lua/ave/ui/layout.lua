@@ -33,7 +33,7 @@ function M.open(spec)
     return state.win, state.buf, state.job
   end
   local cols = vim.o.columns
-  local width = math.max(20, math.floor(cols * (spec.width or 0.4)))
+  local width = math.max(20, math.floor(cols * (spec.width or 0.25)))
   if not valid_win(state.win) then
     local prev = vim.api.nvim_get_current_win()
     vim.cmd("botright " .. width .. "vsplit")
