@@ -31,6 +31,7 @@ function M.start(name)
   }, spec.env or {})
   spec.width = opts.width
   spec.esc_double = opts.esc_double
+  spec.focus = opts.focus_on_open
   local win, buf, job = require("ave.ui.layout").open(spec)
   if not win then
     st.stop_session(sess)
