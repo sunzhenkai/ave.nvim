@@ -107,12 +107,27 @@ function M.open(spec)
   return state.win, state.buf, state.job
 end
 
+-- 测试用：只装状态，不起进程
+function M.__test_attach(buf, work_win, job, win)
+  state.buf, state.job, state.work_win = buf, job or -1, work_win
+  state.win = win or vim.api.nvim_get_current_win()
+end
+
+function M.__test_detach()
+  state.buf, state.job, state.win, state.work_win, state.full_tab = nil, nil, nil, nil, nil
+end
+
 function M.close()
   -- 关自己触发 on_exit 时不要再进来一次
   if state.closing then
     return
   end
   state.closing = true
+  if state.full_tab and vim.api.nvim_tabpage_is_valid(state.full_tab) then
+    pcall(vim.api.nvim_set_current_tabpage, state.full_tab)
+    pcall(vim.cmd, "tabclose")
+  end
+  state.full_tab = nil
   if state.job then
     pcall(vim.fn.jobstop, state.job)
   end
@@ -124,6 +139,29 @@ function M.close()
   end
   state.job, state.buf, state.win = nil, nil, nil
   state.closing = false
+end
+
+-- 全屏：把面板 buffer 扔进独立 tab，不动原来的分屏布局；再切回来就行
+function M.toggle_full()
+  if not M.is_open() then
+    return nil, "agent is not running"
+  end
+  if state.full_tab and vim.api.nvim_tabpage_is_valid(state.full_tab) then
+    pcall(vim.api.nvim_set_current_tabpage, state.full_tab)
+    pcall(vim.cmd, "tabclose")
+    state.full_tab = nil
+    return false
+  end
+  vim.cmd("tab sbuffer " .. state.buf)
+  state.full_tab = vim.api.nvim_get_current_tabpage()
+  vim.wo.number = false
+  vim.wo.signcolumn = "no"
+  vim.cmd("startinsert")
+  return true
+end
+
+function M.is_full()
+  return state.full_tab ~= nil and vim.api.nvim_tabpage_is_valid(state.full_tab)
 end
 
 -- 往 agent 终端粘文本（不回车）：用户主动把选区送给 agent 时用

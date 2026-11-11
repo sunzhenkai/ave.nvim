@@ -92,6 +92,13 @@ Agent 主动调 `editor_open` 是「拉」；「推」这条通道按 Agent 各�
 - **Codex**：没有等价的 hook 接口，只有主动工具调用。
 - **Pi**：没找到 hook 机制，暂不接。
 
+## 全屏
+
+`:Ave full`（`<leader>aF`）用 `:tab sbuffer <面板 buf>` 把面板搬进独立 tab，退出时 `:tabclose`。
+选 tab 而不是「关掉其他窗口再重开」，是因为 tabclose 不会动原 tab 的分屏结构，代价为零；float
+盖满全屏也能做，但要自己算尺寸、border 和各种 window option，还会遮住 statusline。
+`M.close()` 在全屏状态下先关 tab 再删 buffer。
+
 ## 状态归属
 
 nvim 独占所有状态：Session 表、工作窗口、高亮 namespace、探索路径。Helper 无状态，Agent 无状态。

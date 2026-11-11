@@ -17,7 +17,7 @@ function M.register_commands()
   end, {
     nargs = "*",
     complete = function()
-      return { "open", "close", "toggle", "stop", "status", "install", "back", "forward", "path", "send" }
+      return { "open", "close", "toggle", "stop", "status", "install", "back", "forward", "path", "send", "full" }
     end,
     desc = "ave: native agent panel",
   })
@@ -67,6 +67,7 @@ function M.setup(opts)
       { cfg.keys.forward, "forward", "ave: path forward" },
       { cfg.keys.path, "path", "ave: path list" },
       { cfg.keys.send, "send", "ave: send selection to agent" },
+      { cfg.keys.full, "full", "ave: agent panel fullscreen" },
     }
     for _, b in ipairs(binds) do
       if b[1] then
@@ -154,6 +155,11 @@ function M.dispatch(args)
     if not res then
       notify(tostring(err), vim.log.levels.WARN)
     end
+  elseif sub == "full" then
+    local full, err = require("ave.ui.layout").toggle_full()
+    if full == nil then
+      notify(tostring(err), vim.log.levels.WARN)
+    end
   elseif sub == "close" or sub == "stop" then
     manager.stop()
   elseif sub == "status" then
@@ -164,6 +170,7 @@ function M.dispatch(args)
         "socket=" .. tostring(st.socket),
         "server=" .. (st.server and "up" or "down"),
         "running=" .. tostring(manager.is_running()),
+        "full=" .. tostring(require("ave.ui.layout").is_full()),
         "agent=" .. (st.current and (st.current.agent .. "#" .. st.current.id) or "-"),
       }, " "),
       vim.log.levels.INFO

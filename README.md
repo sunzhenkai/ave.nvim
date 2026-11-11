@@ -50,6 +50,7 @@ Claude Code 和 Codex 不需要装到全局：`ave` 用 `--mcp-config` / `-c` �
 :Ave back             " 沿探索路径后退一步
 :Ave forward          " 前进一步
 :Ave path             " 路径扔进 loclist，可跳选
+:Ave full             " 面板全屏 / 退出全屏
 ```
 
 默认键位（可在 `setup()` 里覆盖）：
@@ -60,6 +61,7 @@ Claude Code 和 Codex 不需要装到全局：`ave` 用 `--mcp-config` / `-c` �
 | `<leader>a[` | 路径后退 |
 | `<leader>a]` | 路径前进 |
 | `<leader>al` | 路径 loclist |
+| `<leader>aF` | 面板全屏（独立 tab，原分屏布局不动） |
 | `<leader>as` | 把当前选区（或光标行）以 `@file:Lx-Ly` 送进 Agent 终端 |
 | `Esc Esc`（面板内） | 退出 terminal-mode 回 normal；单击 `Esc` 原样送给 Agent（它是 Agent 的取消键） |
 | `i` / `a`（面板 normal） | 回到 Agent 输入 |

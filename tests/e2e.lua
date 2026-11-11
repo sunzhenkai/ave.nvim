@@ -75,6 +75,23 @@ ex.reset()
 check("load restores", ex.load() and #ex.stack == saved, #ex.stack .. "/" .. saved)
 check("load keeps index", ex.idx <= #ex.stack)
 
+-- 全屏：面板 buffer 进独立 tab，退出后原布局还在
+local L = require("ave.ui.layout")
+do
+  vim.cmd("vsplit")
+  local before = #vim.api.nvim_tabpage_list_wins(0)
+  local wbuf = vim.api.nvim_get_current_buf()
+  local pbuf = vim.api.nvim_create_buf(false, true)
+  L.__test_attach(pbuf, wbuf)
+  local full = L.toggle_full()
+  check("full raises tab", full == true and vim.fn.tabpagenr("$") == 2, vim.inspect({ full = full, tabs = vim.fn.tabpagenr("$") }))
+  check("full spans columns", vim.api.nvim_win_get_width(0) == vim.o.columns, vim.api.nvim_win_get_width(0))
+  L.toggle_full()
+  check("full restores tabs", vim.fn.tabpagenr("$") == 1)
+  check("full restores splits", #vim.api.nvim_tabpage_list_wins(0) == before)
+  L.__test_detach()
+end
+
 -- agent 面板的终端键位：Esc 单击给 agent、双击回 normal，i/a 回 terminal-mode
 local tbuf = vim.api.nvim_create_buf(false, true)
 require("ave.ui.layout").map_term(tbuf, 0, {})
