@@ -27,6 +27,10 @@ AVE_ROOT=/path/to/repo
 Agent 由 nvim 的终端启动，环境变量随进程继承；helper 从自身环境读取，所以 MCP 配置是静态的，
 不需要每 Session 生成一份。唯一例外是 Codex：它会过滤 MCP 子进程的环境变量，必须显式传（见 `docs/agents.md`）。
 
+agent 不是从 nvim 启动时（比如直接在终端跑 `pi`）没有 `WORKBENCH_SOCKET`：helper 会扫
+`$XDG_RUNTIME_DIR/ave/*.sock`，用 `editor.context` 探活，优先挑 `root` 与自身 cwd 相同的实例；
+只有一个活实例时直接用它，多个都对不上就报错而不是猜。
+
 ## 协议
 
 NDJSON，一行一条 JSON-RPC 2.0 消息。请求带 `params.session`，便于将来在同一 socket 上区分会话。
