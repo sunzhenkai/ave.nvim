@@ -13,7 +13,12 @@ grep -aq "ALL PASS" /tmp/ave-test-unit.log || fails=$((fails + 1))
 
 echo "== 端到端（MCP → helper → UDS → nvim） =="
 rm -f /tmp/ave-mcp-e2e.sock /tmp/ave-mcp-e2e.err /tmp/ave-test-host.log
-[ -n "${XDG_RUNTIME_DIR:-}" ] && rm -f "$XDG_RUNTIME_DIR"/ave/*.sock
+# 测试用自己的运行时目录：默认目录里可能有正在用的编辑器 socket，删了会断掉它的桥
+export XDG_RUNTIME_DIR=/tmp/ave-test-runtime
+rm -rf "$XDG_RUNTIME_DIR" && mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
+# swap/log 也隔离：残留的 swap 会让 nvim 卡在 "Press ENTER"
+export XDG_STATE_HOME=/tmp/ave-test-state
+rm -rf "$XDG_STATE_HOME" && mkdir -p "$XDG_STATE_HOME"
 timeout 60 script -qfc "nvim --clean -c 'luafile tests/host.lua'" /tmp/ave-test-host.log >/dev/null 2>&1 &
 host_pid=$!
 for _ in $(seq 1 40); do
