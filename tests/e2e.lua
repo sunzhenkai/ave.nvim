@@ -101,6 +101,34 @@ do
   check("pi carries directive", pj:find("append%-system%-prompt") ~= nil and pj:find("editor_tour") ~= nil)
 end
 
+-- 自定义 flag：cmd 原样带下去，只配一个 agent 不能把其他 agent 抹掉
+do
+  local cfgmod = require("ave.config")
+  local o = require("ave").setup({
+    agents = {
+      claude = { cmd = { "claude", "--permission-mode", "bypassPermissions" } },
+      codex = { cmd = { "codex", "--dangerously-bypass-approvals-and-sandbox" } },
+    },
+  })
+  check("partial agents keeps untouched ones", o.agents.pi ~= nil and o.agents.pi.cmd[1] == "pi")
+  local sess = { id = "t", root = "/tmp", socket = "/tmp/x.sock" }
+  local cs = require("ave.agent.adapters.claude").spec(sess, o)
+  check(
+    "claude flag passes through",
+    table.concat(cs.cmd, " "):find("--permission-mode bypassPermissions", 1, true) ~= nil,
+    table.concat(cs.cmd, " ")
+  )
+  cs.cleanup()
+  local xs = require("ave.agent.adapters.codex").spec(sess, o)
+  check("codex flag passes through", table.concat(xs.cmd, " "):find("--dangerously-bypass-approvals-and-sandbox", 1, true) ~= nil)
+  require("ave").setup({})
+  check("setup resets agents", cfgmod.get().agents.codex.cmd[1] == "codex" and #cfgmod.get().agents.claude.cmd == 1)
+  -- keys 同理：只改一个不能把其余置空
+  local k = cfgmod.setup({ keys = { toggle = "<leader>cA" } })
+  check("partial keys keeps the rest", k.keys.toggle == "<leader>cA" and k.keys.back == "<leader>a[", vim.inspect(k.keys))
+  require("ave").setup({})
+end
+
 -- 面板键位：Esc 只透传给 agent，跨窗口用 <C-h/j/k/l>
 do
   local L = require("ave.ui.layout")

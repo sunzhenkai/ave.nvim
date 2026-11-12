@@ -1,5 +1,7 @@
 # ave
 
+中文（默认）· [English](README.en.md)
+
 把 Neovim 和原生 Coding Agent（Claude Code / Codex / Pi）接在一起，让 Agent 能直接驱动编辑器：跳到实现、高亮代码范围、串起跨文件的探索路径。
 
 左侧是编辑器，右侧是 Agent 自己的 TUI（不重写 Chat UI），中间一条本机 socket 做双向通道。
@@ -38,6 +40,28 @@ nvim ── UDS(JSON-RPC/NDJSON) ── node bridge-helper ── MCP(stdio) ─
 ```
 
 Claude Code 和 Codex 不需要装到全局：`ave` 用 `--mcp-config` / `-c` 参数临时注入。Pi 只认用户级配置，所以要显式跑一次 `:Ave install pi`。
+
+### LazyVim
+
+LazyVim 只是 lazy.nvim 的预设，插件丢进 `lua/plugins/` 就会被自动导入，不需要额外的键位或 `opts` 桥接：
+
+```lua
+-- ~/.config/nvim/lua/plugins/ave.lua
+return {
+  "sunzhenkai/ave.nvim",
+  config = function() require("ave").setup() end,
+}
+```
+
+唯一要注意的是 LazyVim 的 AI 类 extra（`extras/ai/claudecode`、`sidekick`、`copilot-chat`）
+把 `<leader>a` 占成了 AI 组，其中的 `<leader>aa` / `<leader>as` 会跟 ave 撞。要么不装那些 extra，
+要么改 key（只写要改的，其余的保持默认）：
+
+```lua
+require("ave").setup({ keys = { toggle = "<leader>cA", send = "<leader>cS" } })
+```
+
+`<leader>` 本身跟着 LazyVim（默认空格）走，ave 不接管。
 
 ## 用法
 
@@ -82,6 +106,27 @@ Agent 侧无需手动配置，`ave` 会按 Agent 自己的方式注册 MCP serve
 面板里的 `Esc` 不给 Neovim 抢：Agent 靠它中断任务。要挪窗口按 `Ctrl-h/j/k/l`，
 要进 normal mode 按 `Ctrl-\ Ctrl-N`。真想要双击 `Esc` 的老行为，就开 `esc_double = true`
 （代价是第一下已经发给 Agent 了，打断还是会先发生）。
+
+## 配置
+
+`agents.<name>.cmd` 就是整条启动命令，ave 只往后面追加自己需要的参数（MCP 配置、system prompt），
+所以 agent 自己的 flag 直接写进去就行。两个常用的提权开关：
+
+```lua
+require("ave").setup({
+  agents = {
+    claude = { cmd = { "claude", "--permission-mode", "bypassPermissions" } },
+    codex = { cmd = { "codex", "--dangerously-bypass-approvals-and-sandbox" } },
+  },
+})
+```
+
+只写其中一个也行，没写到的 agent 保留默认命令。这两个开关都跳过 agent 的确认（codex 还关掉
+沙箱），只在你信任的仓库里开。
+
+其它选项：`agent`（默认启动哪个）、`width`、`focus_on_open`、`esc_double`、`node`、`helper`、
+`socket_dir`、`keys`，见 `lua/ave/config.lua` 的 `M.defaults`。`agents` 和 `keys` 都按条目合并，
+只写你要改的那几个。
 
 ## 测试
 

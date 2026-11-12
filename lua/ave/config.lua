@@ -22,8 +22,11 @@ M.options = vim.deepcopy(M.defaults)
 
 function M.setup(opts)
   local o = vim.tbl_extend("force", M.defaults, opts or {})
-  -- agents 整表替换，避免列表按索引合并
-  o.agents = (opts and opts.agents) or M.defaults.agents
+  -- agents 按单个 agent 替换整表（cmd 是列表，不能按下标合并），但没写到的 agent 保留默认，
+  -- 否则只配 claude 就会把 codex/pi 一起抹掉
+  o.agents = vim.tbl_extend("force", vim.deepcopy(M.defaults.agents), (opts and opts.agents) or {})
+  -- keys 同理：只改一个键不能把其余的漏成 nil
+  o.keys = vim.tbl_extend("force", M.defaults.keys, (opts and opts.keys) or {})
   M.options = o
   return o
 end
