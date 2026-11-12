@@ -68,7 +68,9 @@ Claude Code 和 Codex 不需要装到全局：`ave` 用 `--mcp-config` / `-c` �
 | `<leader>aF` | 面板全屏（独立 tab，原分屏布局不动） |
 | `<leader>ag` | 导览下一块；`3<leader>ag` 直达第 3 块（无计数时提示输入） |
 | `<leader>as` | 把当前选区（或光标行）以 `@file:Lx-Ly` 送进 Agent 终端 |
-| `Esc Esc`（面板内） | 退出 terminal-mode 回 normal；单击 `Esc` 原样送给 Agent（它是 Agent 的取消键） |
+| `Esc`（面板内） | 原样送给 Agent（打断/取消），插件不拦截 |
+| `Ctrl-\ Ctrl-N`（面板内） | 回到 normal mode |
+| `Ctrl-h/j/k/l`（面板内） | 直接跨窗口，不用先退 terminal-mode |
 | `i` / `a`（面板 normal） | 回到 Agent 输入 |
 
 导览（tour）和探索路径（path）是两件事：path 是全自动压栈的历史（含 Claude 的被动跟随），
@@ -76,8 +78,9 @@ tour 是 Agent 先问过你、再一次性推送的线性脚本。导览激活�
 
 Agent 侧无需手动配置，`ave` 会按 Agent 自己的方式注册 MCP server（见 [docs/agents.md](docs/agents.md)）。
 
-面板里的 `Esc` 不给 Neovim 抢：Agent 靠它中断任务。要挪窗口就在面板里按两次 `Esc`（300ms 内），
-或者 `Ctrl-\ Ctrl-N`。不想要双击行为就把 `esc_double = false`。
+面板里的 `Esc` 不给 Neovim 抢：Agent 靠它中断任务。要挪窗口按 `Ctrl-h/j/k/l`，
+要进 normal mode 按 `Ctrl-\ Ctrl-N`。真想要双击 `Esc` 的老行为，就开 `esc_double = true`
+（代价是第一下已经发给 Agent 了，打断还是会先发生）。
 
 ## 测试
 

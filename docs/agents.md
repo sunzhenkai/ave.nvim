@@ -67,3 +67,18 @@ tool_search tool`，工具对模型不可见。项目级 `.pi/mcp.json` 需要�
 - Agent 退出后 helper 随之退出；nvim 侧对 socket 上无连接不做事。
 - 无法向 Agent 的 TUI 注入「结构化消息」。需要把选区送给 Agent 时，走 `chansend` 粘贴
   `@path:Lx-Ly` 文本（仅用户主动触发，不自动提交）。
+
+## claude：MCP 工具被 deferred，必须补 system prompt
+
+实测（claude 2.1.32x）：即使 `--mcp-config` 已接上，ave 的工具也只是以名字出现在
+`deferred tools` 列表里，schema 没进上下文，模型要主动 `ToolSearch` 才会加载。
+同时 user skill（如 `code-explore`）的输出模板优先级高于 MCP `instructions`，
+结果是它读完一堆文件、写一份长报告，一次 ave 工具都不调。
+
+对策写在 adapter 里：启动时追加 `--append-system-prompt`（优先级高于 skill），
+明确「先用 ToolSearch 加载 `mcp__ave__*`，再用一次 `editor_tour` 推代码块」。
+`lua/ave/agent/adapters/claude.lua` 的 `M.directive` 就是这段文本。
+
+验证：同一个「用 code-explore 梳理 editor_open 到高亮的链路」提示词——
+不带该参数时工具调用只有 `Skill/Read/Bash`；带上后是
+`Skill/Read/ToolSearch/editor_tour`。

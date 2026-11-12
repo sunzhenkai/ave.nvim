@@ -1,6 +1,14 @@
 -- Claude Code：CLI 参数吃 MCP 配置，且支持 --strict-mcp-config 屏蔽用户级配置
 local M = {}
 
+M.directive = table.concat({
+  "你在 ave（Neovim 插件）里运行，编辑器已连上。",
+  "梳理跨文件流程或调用链时：先用 ToolSearch 加载 mcp__ave__* 工具，",
+  "然后用一次 editor_tour 把有序代码块推给编辑器（缺的块用 append 追加），",
+  "只输出文字报告、不做编辑器展示视为任务未完成。",
+  "查单个实现用 editor_open，查定义/引用用 editor_lsp。",
+}, "")
+
 local function shq(s)
   return "'" .. s:gsub("'", "'\\''") .. "'"
 end
@@ -34,6 +42,10 @@ function M.spec(sess, cfg)
 
   local cmd = vim.deepcopy(cfg.agents.claude.cmd)
   vim.list_extend(cmd, { "--mcp-config", file, "--strict-mcp-config" })
+  -- claude 会把 MCP 工具压成 deferred（只有名字、没有 schema），且 user skill 的输出模板
+  -- 优先级高于 MCP instructions；实测只加载 code-explore 时它一次 ave 工具都不调。
+  -- system prompt 优先级最高，用它把「必须推 tour」这条压过 skill。
+  vim.list_extend(cmd, { "--append-system-prompt", M.directive })
   if sess.settings then
     vim.list_extend(cmd, { "--settings", sess.settings })
   end

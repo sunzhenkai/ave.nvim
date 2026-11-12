@@ -28,32 +28,54 @@ function M.is_open()
   return valid_win(state.win) and state.job ~= nil
 end
 
--- Esc 是 agent 自己的键（中断/取消），不能直接霸占；双击 Esc 才退出
--- terminal-mode，单击原样送给 agent
+-- 先转好 termcodes，keymap 里再拼容易把 <C-\> 当字面量
+local LEAVE = vim.api.nvim_replace_termcodes("<C-\\><C-n>", true, false, true)
 local last_esc = 0
 
+-- 键位处理函数单独存一份：keymap 只是壳，测试可以直接调
+local term_keys = {}
+
 function M.map_term(buf, job, spec)
-  local double = not (spec and spec.esc_double == false)
-  vim.keymap.set("t", "<Esc>", function()
-    local now = vim.uv.now()
-    if double and last_esc > 0 and now - last_esc < 300 then
-      last_esc = 0
-      vim.api.nvim_feedkeys(
-        vim.api.nvim_replace_termcodes("<C-\\><C-n>", true, false, true),
-        "n",
-        false
-      )
-      return
+  spec = spec or {}
+  term_keys = {}
+  -- Esc 只做打断：agent 拿它中断输出，拦截它就是抢用户的键。
+  -- 要回 normal mode 按 <C-\><C-n>；要离开面板直接 <C-h/j/k/l>。
+  term_keys["<Esc>"] = function()
+    if spec.esc_double then
+      local now = vim.uv.now()
+      if last_esc > 0 and now - last_esc < 300 then
+        last_esc = 0
+        vim.api.nvim_feedkeys(LEAVE, "n", false)
+        return
+      end
+      last_esc = now
     end
-    last_esc = now
     vim.fn.chansend(job, "\27")
-  end, { buffer = buf, silent = true, desc = "ave: Esc 给 agent，双击回 normal" })
+  end
+  for key, dir in pairs({ ["<C-h>"] = "h", ["<C-j>"] = "j", ["<C-k>"] = "k", ["<C-l>"] = "l" }) do
+    term_keys[key] = function()
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-\\><C-n><C-w>" .. dir, true, false, true), "n", false)
+    end
+  end
+  for key, fn in pairs(term_keys) do
+    vim.keymap.set("t", key, fn, { buffer = buf, silent = true, desc = "ave: " .. key })
+  end
   -- terminal buffer 的 normal mode 里 i/a 不会自动回到 terminal-mode
   for _, k in ipairs({ "i", "a" }) do
     vim.keymap.set("n", k, function()
       vim.cmd("startinsert")
     end, { buffer = buf, silent = true, desc = "ave: 回到 agent 输入" })
   end
+end
+
+-- 测试用：按一次键（走和 keymap 同一个函数）
+function M.__test_key(key)
+  local fn = term_keys[key]
+  if not fn then
+    return false
+  end
+  fn()
+  return true
 end
 
 function M.open(spec)

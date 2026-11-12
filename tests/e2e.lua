@@ -75,6 +75,43 @@ ex.reset()
 check("load restores", ex.load() and #ex.stack == saved, #ex.stack .. "/" .. saved)
 check("load keeps index", ex.idx <= #ex.stack)
 
+-- claude 适配：deferred MCP 工具需要 system prompt 兜住
+do
+  local cfg = require("ave.config").get()
+  local sess = { id = "t", root = vim.fn.getcwd(), socket = "/tmp/x.sock" }
+  local spec = require("ave.agent.adapters.claude").spec(sess, cfg)
+  local joined = table.concat(spec.cmd, " ")
+  check("claude loads mcp config", joined:find("--mcp%-config") ~= nil)
+  check("claude carries directive", joined:find("--append%-system%-prompt") ~= nil)
+  check("claude directive names tour", joined:find("editor_tour") ~= nil)
+  spec.cleanup()
+end
+
+-- 面板键位：Esc 只透传给 agent，跨窗口用 <C-h/j/k/l>
+do
+  local L = require("ave.ui.layout")
+  local got = {}
+  local job = vim.fn.jobstart({ "cat" }, {
+    on_stdout = function(_, data)
+      for _, d in ipairs(data) do
+        got[#got + 1] = d
+      end
+    end,
+  })
+  local buf = vim.api.nvim_create_buf(false, true)
+  L.map_term(buf, job, {})
+  local n = #vim.api.nvim_buf_get_keymap(buf, "t")
+  check("panel term keys mapped", n == 5, n)
+  check("panel key handler runs", L.__test_key("<Esc>"))
+  vim.wait(800, function()
+    return #got > 0
+  end)
+  -- cat 原样回显，收到 ESC 才说明字节真的到了 agent
+  check("esc reaches agent", table.concat(got, ""):find("\27", 1, true) ~= nil, vim.inspect(got))
+  pcall(vim.fn.jobstop, job)
+  pcall(vim.api.nvim_buf_delete, buf, { force = true })
+end
+
 -- 业务导览：块列表、前后跳、指定块、解释贴在编辑区
 local T = require("ave.tour")
 do
