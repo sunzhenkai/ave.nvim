@@ -128,7 +128,10 @@ function M.open(spec)
   state.buf, state.job = buf, job
   vim.bo[buf].filetype = "ave-agent"
   M.map_term(buf, job, spec)
-  if not spec.focus then
+  if spec.focus then
+    vim.api.nvim_set_current_win(state.win)
+    vim.cmd("startinsert")
+  else
     vim.api.nvim_set_current_win(M.work_win())
   end
   return state.win, state.buf, state.job

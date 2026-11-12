@@ -3,8 +3,8 @@ local M = {}
 M.defaults = {
   agent = "claude",
   width = 0.25,
-  -- 打开面板后把焦点留在编辑器；用户在 agent 输入框里打字时不会被抢走
-  focus_on_open = false,
+  -- 打开面板后直接把焦点交给 agent 并进输入模式（设 false 就留在编辑器）
+  focus_on_open = true,
   -- Esc 一律给 agent（打断）；true 时 300ms 内按两下才回 normal mode
   esc_double = false, -- agent 面板里双击 Esc 回 normal mode，单击原样给 agent
   node = "node",

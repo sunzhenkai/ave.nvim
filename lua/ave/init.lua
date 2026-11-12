@@ -17,7 +17,7 @@ function M.register_commands()
   end, {
     nargs = "*",
     complete = function()
-      return { "open", "close", "toggle", "stop", "status", "install", "back", "forward", "path", "send", "full", "tour", "goto" }
+      return { "open", "pick", "close", "toggle", "stop", "status", "install", "back", "forward", "path", "send", "full", "tour", "goto" }
     end,
     desc = "ave: native agent panel",
   })
@@ -66,7 +66,7 @@ function M.setup(opts)
 
   if cfg.keys and cfg.keys.toggle then
     local binds = {
-      { cfg.keys.toggle, "toggle", "ave: toggle agent panel" },
+      { cfg.keys.toggle, "pick", "ave: pick and start agent" },
       { cfg.keys.back, "back", "ave: path back" },
       { cfg.keys.forward, "forward", "ave: path forward" },
       { cfg.keys.path, "path", "ave: path list" },
@@ -137,6 +137,17 @@ local function install_helper(cfg)
   })
 end
 
+-- 用 vim.ui.select：用户装了 snacks/telescope 就是浮窗，没装走内置列表
+local function pick_agent()
+  local names = vim.tbl_keys(require("ave.config").get().agents or {})
+  table.sort(names)
+  vim.ui.select(names, { prompt = "ave: 启动哪个 agent" }, function(choice)
+    if choice then
+      M.dispatch({ "open", choice })
+    end
+  end)
+end
+
 function M.dispatch(args)
   local sub = args[1] or "toggle"
   local manager = require("ave.agent.manager")
@@ -147,6 +158,8 @@ function M.dispatch(args)
     if not sess then
       notify(tostring(err), vim.log.levels.ERROR)
     end
+  elseif sub == "pick" then
+    pick_agent()
   elseif sub == "toggle" then
     local sess, err = manager.toggle()
     if sess == nil and err then

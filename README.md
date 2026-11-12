@@ -42,10 +42,11 @@ Claude Code 和 Codex 不需要装到全局：`ave` 用 `--mcp-config` / `-c` �
 ## 用法
 
 ```vim
-:Ave open             " 打开右侧 Agent 面板（默认 claude）
+:Ave pick             " 浮窗选 agent 后启动（<leader>aa 就是它）
+:Ave open             " 直接开默认 agent（默认 claude）
 :Ave open codex       " 指定 agent
 :Ave close
-:Ave toggle
+:Ave toggle           " 开着就关，没开就按默认 agent 起
 :Ave stop             " 结束当前 agent 进程
 :Ave status           " 看 helper / socket / 会话状态
 :Ave back             " 沿探索路径后退一步
@@ -57,11 +58,11 @@ Claude Code 和 Codex 不需要装到全局：`ave` 用 `--mcp-config` / `-c` �
 :Ave goto 3           " 跳到导览第 3 块
 ```
 
-默认键位（可在 `setup()` 里覆盖）：
+默认键位（`setup()` 时就装好，不需要先 `:Ave`；可在 `setup()` 里覆盖）：
 
 | 键 | 动作 |
 |---|---|
-| `<leader>aa` | 开关 Agent 面板 |
+| `<leader>aa` | 打开 agent 选择浮窗，选完启动并把光标交给它 |
 | `<leader>a[` | 路径后退 |
 | `<leader>a]` | 路径前进 |
 | `<leader>al` | 路径 loclist |
