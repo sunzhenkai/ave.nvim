@@ -10,6 +10,9 @@ function M.spec(sess, cfg)
     'mcp_servers.ave.args=["' .. cfg.helper .. '","mcp"]',
     "-c",
     'mcp_servers.ave.env={WORKBENCH_SOCKET="' .. sess.socket .. '"}',
+    -- codex 没有 append-system-prompt，用 developer_instructions 追加开发者消息
+    "-c",
+    'developer_instructions="' .. require("ave.agent.adapters").directive .. '"',
   }
   local cmd = vim.deepcopy(cfg.agents.codex.cmd)
   vim.list_extend(cmd, args)

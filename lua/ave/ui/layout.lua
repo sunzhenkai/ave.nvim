@@ -24,6 +24,11 @@ function M.set_work_win(w)
   state.work_win = w
 end
 
+-- 当前 agent 的 job id（nil 表示没跑）
+function M.job()
+  return state.job
+end
+
 function M.is_open()
   return valid_win(state.win) and state.job ~= nil
 end

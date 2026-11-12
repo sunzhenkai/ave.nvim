@@ -85,6 +85,14 @@ do
   check("claude carries directive", joined:find("--append%-system%-prompt") ~= nil)
   check("claude directive names tour", joined:find("editor_tour") ~= nil)
   spec.cleanup()
+
+  local cs = require("ave.agent.adapters.codex").spec({ id = "t", root = "/tmp", socket = "/tmp/x.sock" }, cfg)
+  local cj = table.concat(cs.cmd, " ")
+  check("codex carries directive", cj:find("developer_instructions") ~= nil and cj:find("editor_tour") ~= nil)
+
+  local ps = require("ave.agent.adapters.pi").spec({ id = "t", root = "/tmp", socket = "/tmp/x.sock" }, cfg)
+  local pj = table.concat(ps.cmd, " ")
+  check("pi carries directive", pj:find("append%-system%-prompt") ~= nil and pj:find("editor_tour") ~= nil)
 end
 
 -- 面板键位：Esc 只透传给 agent，跨窗口用 <C-h/j/k/l>

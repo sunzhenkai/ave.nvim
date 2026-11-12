@@ -39,7 +39,9 @@ function M.spec(sess, cfg)
   if not entry then
     return nil, "pi 需要先运行 :Ave install pi 写入用户级 MCP 配置"
   end
-  return { cmd = vim.deepcopy(cfg.agents.pi.cmd), cwd = sess.root }
+  local cmd = vim.deepcopy(cfg.agents.pi.cmd)
+  vim.list_extend(cmd, { "--append-system-prompt", require("ave.agent.adapters").directive })
+  return { cmd = cmd, cwd = sess.root }
 end
 
 return M

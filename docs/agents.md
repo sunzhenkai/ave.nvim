@@ -81,4 +81,16 @@ tool_search tool`，工具对模型不可见。项目级 `.pi/mcp.json` 需要�
 
 验证：同一个「用 code-explore 梳理 editor_open 到高亮的链路」提示词——
 不带该参数时工具调用只有 `Skill/Read/Bash`；带上后是
-`Skill/Read/ToolSearch/editor_tour`。
+`Skill/Read/ToolSearch/editor_tour`。真在 `:Ave open` 的 TUI 里跑，落盘 11 个 tour 块、
+15 个 hook 压栈的 path hop。
+
+codex / pi 同一个病，各自的注入方式：
+
+| agent | 注入参数 | 实测（不带 → 带） |
+|---|---|---|
+| claude | `--append-system-prompt` | `Skill/Read/Bash` → `Skill/Read/ToolSearch/editor_tour` |
+| codex | `-c 'developer_instructions="…"'`（codex 没有 system prompt 参数） | `exec_command`×21 → `exec_command`×21 + `editor_tour`×1 |
+| pi | `--append-system-prompt` | `read/fffind/bash` → `bash`×9 + `mcp__ave__editor_tour` |
+
+三份文本共用 `lua/ave/agent/adapters/init.lua` 的 `M.directive`，只有 claude 额外加一句
+「先 ToolSearch 加载 `mcp__ave__*`」（它把 MCP 工具当 deferred）。
