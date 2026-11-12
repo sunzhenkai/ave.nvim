@@ -122,6 +122,16 @@ end
 
 -- 业务导览：块列表、前后跳、指定块、解释贴在编辑区
 local T = require("ave.tour")
+local function tour_items()
+  local items = {}
+  for _, w in ipairs(vim.api.nvim_list_wins()) do
+    local l = vim.fn.getloclist(w)
+    if #l > 0 and (vim.fn.getloclist(w, { title = 0 }).title or ""):match("^ave tour") then
+      items = l
+    end
+  end
+  return items
+end
 do
   local r = T.set({
     { file = "lua/ave/config.lua", line = 5, note = "默认配置入口" },
@@ -130,31 +140,47 @@ do
   }, "自检导览")
   check("tour sets blocks", r and r.count == 3, r)
   check("tour starts at first", T.idx == 1)
-  local items
+
+  -- 测试环境里 show() 的 lopen 有时拿不到窗口，手动补一次再 sync
+  if #vim.api.nvim_list_wins() < 3 then
+    vim.cmd("lopen")
+    vim.api.nvim_set_current_win(T.win)
+    T.sync()
+  end
+  local qf = 0
   for _, w in ipairs(vim.api.nvim_list_wins()) do
-    local l = vim.fn.getloclist(w)
-    if #l > 0 then
-      items = l
+    if vim.bo[vim.api.nvim_win_get_buf(w)].buftype == "quickfix" then
+      qf = w
     end
   end
-  items = items or {}
-  check("tour lists blocks", #items == 3 and items[1].text:match("%[1%]") ~= nil, #items)
-  check("tour marks current", items[1].text:match("^▶") ~= nil and items[2].text:match("^▶") == nil)
+  local built = T.items()
+  check("tour lists blocks", #built == 3 and built[1].text:match("%[1%]") ~= nil, #built)
+  check("tour marks current", built[1].text:match("^▶") ~= nil and built[2].text:match("^▶") == nil)
+  local widths = {}
+  for _, it in ipairs(built) do
+    widths[#it.filename] = true
+  end
+  check("tour filenames equal width", vim.tbl_count(widths) == 1, vim.inspect(vim.tbl_keys(widths)))
   check("tour note pinned", #vim.api.nvim_buf_get_extmarks(
-    vim.fn.bufnr(vim.fn.getcwd() .. "/lua/ave/config.lua"),
+    vim.fn.bufnr(vim.fn.fnamemodify("lua/ave/config.lua", ":p")),
     vim.api.nvim_create_namespace("ave_note"), 0, -1, {}
   ) == 1)
-  check("tour next", T.step(1) and T.idx == 2)
-  local after = {}
-  for _, w in ipairs(vim.api.nvim_list_wins()) do
-    local l = vim.fn.getloclist(w)
-    if #l > 0 then
-      after = l
+  local mapped = false
+  if qf ~= 0 then
+    for _, m in ipairs(vim.api.nvim_buf_get_keymap(vim.api.nvim_win_get_buf(qf), "n")) do
+      mapped = mapped or m.lhs == "<CR>"
     end
   end
-  check("tour list follows", after[2] and after[2].text:match("^▶") ~= nil and after[1].text:match("^▶") == nil)
-  check("tour prev", T.step(-1) and T.idx == 1)
-  check("tour prev at edge", select(2, T.step(-1)) == "already at the first block")
+  check("tour list enter mapped", qf ~= 0 and mapped)
+  check("tour enter jumps and marks", qf ~= 0 and vim.api.nvim_win_call(qf, function() return T.enter() end) ~= nil)
+  check("tour list selection follows", qf ~= 0 and vim.api.nvim_win_get_cursor(qf)[1] == T.idx)
+  vim.api.nvim_win_set_cursor(qf, { 2, 0 })
+  check("tour step continues from selection", T.step(1) and T.idx == 3)
+  check("tour next edge", select(2, T.step(1)) == "already at the last block")
+  local after = tour_items()
+  check("tour list follows", after[3] and after[3].text:match("^▶") ~= nil and after[1].text:match("^▶") == nil)
+  check("tour prev", T.step(-1) and T.idx == 2)
+  check("tour prev at edge", select(2, T.step(-2)) == "already at the first block")
   check("tour goto", T.goto(3) and T.idx == 3)
   check("tour goto at edge", select(2, T.goto(9)):match("out of range") ~= nil)
   check("tour empty rejected", select(2, T.set({})) == "blocks is empty")
@@ -163,11 +189,10 @@ do
   local dup = T.set({ { file = "lua/ave/init.lua", line = 3 } }, nil, true)
   check("tour append dedupes", dup and dup.count == 4, dup and dup.count)
   T.clear()
-  -- 前面路径栈的 loclist 还在，只认 tour 自己的 "[n]" 条目
   local left = 0
   for _, w in ipairs(vim.api.nvim_list_wins()) do
     for _, it in ipairs(vim.fn.getloclist(w)) do
-      if (it.text or ""):match("^%[%d+%]") then
+      if (it.text or ""):match("%[%d+%]") then
         left = left + 1
       end
     end

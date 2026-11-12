@@ -57,11 +57,32 @@ function M.goto(i)
   return { index = i, total = #M.list, file = res.file or b.file, line = res.line, note = b.note }
 end
 
+-- 列表窗口（lopen 开的那个），没有就 nil
+local function qf_win()
+  for _, w in ipairs(vim.api.nvim_list_wins()) do
+    if vim.bo[vim.api.nvim_win_get_buf(w)].buftype == "quickfix" then
+      return w
+    end
+  end
+end
+
+-- 用户在列表里把光标挪到某一行，就把它当成当前位置
+function M.selected()
+  local w = qf_win()
+  if not w then
+    return nil
+  end
+  local row = vim.api.nvim_win_get_cursor(w)[1]
+  if row >= 1 and row <= #M.list then
+    return row
+  end
+end
+
 function M.step(delta)
   if not M.active() then
     return nil, "no tour (agent has not sent one)"
   end
-  local n = M.idx + delta
+  local n = (M.selected() or M.idx) + delta
   if n < 1 then
     return nil, "already at the first block"
   end
@@ -137,6 +158,21 @@ function M.clear()
   return true
 end
 
+local NAME_W = 34
+
+-- 路径太长会把描述挤没：中间省略成 …，再补空格让所有行等宽
+local function shortpath(rel)
+  if #rel > NAME_W then
+    local dir, base = rel:match("^(.*)/([^/]+)$")
+    if dir and #base + 4 < NAME_W then
+      rel = dir:sub(1, NAME_W - #base - 4) .. "…/" .. base
+    else
+      rel = "…" .. rel:sub(-(NAME_W - 1))
+    end
+  end
+  return rel .. string.rep(" ", NAME_W - #rel)
+end
+
 -- 列表行：▶ 标当前块，描述放最后
 function M.items()
   local root = st.root or vim.fn.getcwd()
@@ -147,12 +183,45 @@ function M.items()
       where = where .. ("-%d"):format(b.end_line)
     end
     items[#items + 1] = {
-      filename = vim.fs.relpath(root, b.file) or b.file,
+      filename = shortpath(vim.fs.relpath(root, b.file) or b.file),
       lnum = b.line,
       text = (b.index == M.idx and "▶ " or "  ") .. where .. "  " .. (b.note or ""):gsub("\n", " "),
     }
   end
   return items
+end
+
+-- 列表窗口里的回车必须先被我们接住，原生跳转不会打 extmark、也不联动
+local function map_list_keys()
+  local qbuf = nil
+  for _, w in ipairs(vim.api.nvim_list_wins()) do
+    if vim.bo[vim.api.nvim_win_get_buf(w)].buftype == "quickfix" then
+      qbuf = vim.api.nvim_win_get_buf(w)
+    end
+  end
+  if not qbuf or vim.b[qbuf].ave_tour_keys then
+    return
+  end
+  vim.b[qbuf].ave_tour_keys = true
+  for _, key in ipairs({ "<CR>", "o" }) do
+    vim.api.nvim_buf_set_keymap(qbuf, "n", key, "", {
+      nowait = true,
+      silent = true,
+      callback = function()
+        M.enter()
+      end,
+    })
+  end
+end
+
+-- 在列表里回车：走 M.goto 才能拿到高亮和 ▶ 联动，原生跳转不会打 extmark
+function M.enter()
+  if vim.bo.buftype ~= "quickfix" then
+    return nil, "not in the tour list"
+  end
+  local i = vim.fn.line(".")
+  vim.api.nvim_set_current_win(M.win)
+  return M.goto(i)
 end
 
 -- 跳块后同步列表里的 ▶ 标记，不重开窗口
@@ -164,6 +233,13 @@ function M.sync()
   vim.api.nvim_win_call(win, function()
     vim.fn.setloclist(0, {}, "r", { title = "ave tour" .. (M.title and (" · " .. M.title) or ""), items = M.items() })
   end)
+  map_list_keys()
+  -- 列表选中行跟着当前块走（setloclist 会把 qf 光标弹回第一行）
+  for _, w in ipairs(vim.api.nvim_list_wins()) do
+    if vim.bo[vim.api.nvim_win_get_buf(w)].buftype == "quickfix" then
+      pcall(vim.api.nvim_win_set_cursor, w, { M.idx, 0 })
+    end
+  end
 end
 
 function M.show()
@@ -185,8 +261,9 @@ function M.show()
     })
     vim.cmd("lopen")
   end)
-  -- lopen 会把焦点拽到列表里；光标留在代码上，列表只是参考
+  -- lopen 会把焦点拽到列表里；焦点还给代码窗口，列表只作参考
   vim.api.nvim_set_current_win(work)
+  map_list_keys()
   return { count = #items, index = M.idx }
 end
 
