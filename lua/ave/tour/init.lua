@@ -53,6 +53,7 @@ function M.goto(i)
   end
   M.idx = i
   pin(res, b.note)
+  M.sync()
   return { index = i, total = #M.list, file = res.file or b.file, line = res.line, note = b.note }
 end
 
@@ -136,19 +137,40 @@ function M.clear()
   return true
 end
 
+-- 列表行：▶ 标当前块，描述放最后
+function M.items()
+  local root = st.root or vim.fn.getcwd()
+  local items = {}
+  for _, b in ipairs(M.list) do
+    local where = ("[%d] L%d"):format(b.index, b.line)
+    if b.end_line and b.end_line > b.line then
+      where = where .. ("-%d"):format(b.end_line)
+    end
+    items[#items + 1] = {
+      filename = vim.fs.relpath(root, b.file) or b.file,
+      lnum = b.line,
+      text = (b.index == M.idx and "▶ " or "  ") .. where .. "  " .. (b.note or ""):gsub("\n", " "),
+    }
+  end
+  return items
+end
+
+-- 跳块后同步列表里的 ▶ 标记，不重开窗口
+function M.sync()
+  local win = M.win
+  if not (win and vim.api.nvim_win_is_valid(win)) then
+    return
+  end
+  vim.api.nvim_win_call(win, function()
+    vim.fn.setloclist(0, {}, "r", { title = "ave tour" .. (M.title and (" · " .. M.title) or ""), items = M.items() })
+  end)
+end
+
 function M.show()
   if not M.active() then
     return nil, "no tour"
   end
-  local root = st.root or vim.fn.getcwd()
-  local items = {}
-  for _, b in ipairs(M.list) do
-    items[#items + 1] = {
-      filename = vim.fs.relpath(root, b.file) or b.file,
-      lnum = b.line,
-      text = ("[%d] %s"):format(b.index, (b.note or ""):gsub("\n", " ")),
-    }
-  end
+  local items = M.items()
   -- 列表挂在代码窗口上（loclist 是窗口级的），不然切窗口就看丢了
   local work = require("ave.ui.layout").work_win()
   if not (work and vim.api.nvim_win_is_valid(work)) then

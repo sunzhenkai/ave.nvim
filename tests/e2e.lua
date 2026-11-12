@@ -138,12 +138,21 @@ do
     end
   end
   items = items or {}
-  check("tour lists blocks", #items == 3 and items[1].text:match("^%[1%]") ~= nil, #items)
+  check("tour lists blocks", #items == 3 and items[1].text:match("%[1%]") ~= nil, #items)
+  check("tour marks current", items[1].text:match("^▶") ~= nil and items[2].text:match("^▶") == nil)
   check("tour note pinned", #vim.api.nvim_buf_get_extmarks(
     vim.fn.bufnr(vim.fn.getcwd() .. "/lua/ave/config.lua"),
     vim.api.nvim_create_namespace("ave_note"), 0, -1, {}
   ) == 1)
   check("tour next", T.step(1) and T.idx == 2)
+  local after = {}
+  for _, w in ipairs(vim.api.nvim_list_wins()) do
+    local l = vim.fn.getloclist(w)
+    if #l > 0 then
+      after = l
+    end
+  end
+  check("tour list follows", after[2] and after[2].text:match("^▶") ~= nil and after[1].text:match("^▶") == nil)
   check("tour prev", T.step(-1) and T.idx == 1)
   check("tour prev at edge", select(2, T.step(-1)) == "already at the first block")
   check("tour goto", T.goto(3) and T.idx == 3)

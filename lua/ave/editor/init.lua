@@ -73,6 +73,18 @@ function M.mark(buf, start_line, end_line)
   })
 end
 
+-- 让整块落在视野中间；块比窗口高时把它顶到第一行，避免只看得到尾巴
+function M.center_block(win, first, last)
+  local height = vim.api.nvim_win_get_height(win)
+  local span = last - first + 1
+  local target = (span >= height) and first or (first + math.floor((span - 1) / 2))
+  vim.api.nvim_win_set_cursor(win, { target, 0 })
+  vim.api.nvim_win_call(win, function()
+    vim.cmd(span >= height and "normal! zt" or "normal! zz")
+  end)
+  vim.api.nvim_win_set_cursor(win, { first, 0 })
+end
+
 function M.open(p)
   local path = M.resolve(p.file)
   if not path then
@@ -105,7 +117,7 @@ function M.open(p)
     end)
   end
   vim.api.nvim_win_set_buf(win, buf)
-  vim.api.nvim_win_set_cursor(win, { line, 0 })
+  M.center_block(win, line, math.max(line, end_line or line))
   if p.focus then
     vim.api.nvim_set_current_win(win)
   end
