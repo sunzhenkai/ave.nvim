@@ -21,6 +21,11 @@ check("resolve absolute", E.resolve("/tmp/x.lua") == "/tmp/x.lua")
 check("resolve relative", E.resolve("lua/ave/init.lua") == root .. "/lua/ave/init.lua")
 check("resolve rejects nil", E.resolve(nil) == nil)
 
+-- editor.context 带分支：agent 靠它判断磁盘上这版是哪版
+local ctx = E.context()
+local head = vim.trim(vim.fn.system({ "git", "rev-parse", "--abbrev-ref", "HEAD" }))
+check("context carries branch", ctx.branch == head and head ~= "", vim.inspect({ ctx.branch, head }))
+
 -- snippet 定位
 local buf = vim.fn.bufadd(root .. "/lua/ave/config.lua")
 vim.fn.bufload(buf)
@@ -84,6 +89,7 @@ do
   check("claude loads mcp config", joined:find("--mcp%-config") ~= nil)
   check("claude carries directive", joined:find("--append%-system%-prompt") ~= nil)
   check("claude directive names tour", joined:find("editor_tour") ~= nil)
+  check("claude directive forbids copying out", joined:find("工作区外") ~= nil)
   spec.cleanup()
 
   local cs = require("ave.agent.adapters.codex").spec({ id = "t", root = "/tmp", socket = "/tmp/x.sock" }, cfg)

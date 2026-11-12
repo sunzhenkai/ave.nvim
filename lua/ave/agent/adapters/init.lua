@@ -7,6 +7,8 @@ M.directive = table.concat({
   "梳理跨文件流程或调用链时不要只输出文字报告：用 editor_tour 一次推送有序代码块",
   "（缺的块用 append=true 追加），再用文字补充说明；查单个实现用 editor_open，",
   "查定义/引用用 editor_lsp。",
+  "只按当前工作区、当前分支磁盘上的代码梳理：不要切分支或 check out 别的版本，",
+  "也不要复制文件到工作区外（/tmp 之类）去凑行号；某块和别的分支有差异就在 note 里说明。",
 }, "")
 
 local function valid_name(name)

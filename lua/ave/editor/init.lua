@@ -36,6 +36,18 @@ function M.find_snippet(buf, snippet, near)
   return first
 end
 
+-- 分支是 agent 判断「磁盘上这版代码是哪版」的唯一依据，报错/无 git 时留空
+local function branch()
+  local ok, out = pcall(function()
+    return vim.system({ "git", "rev-parse", "--abbrev-ref", "HEAD" }, { cwd = root(), text = true }):wait()
+  end)
+  if not ok or not out or out.code ~= 0 then
+    return nil
+  end
+  local name = vim.trim(out.stdout or "")
+  return name ~= "" and name or nil
+end
+
 function M.context()
   local buf = vim.api.nvim_get_current_buf()
   local win = vim.api.nvim_get_current_win()
@@ -43,6 +55,7 @@ function M.context()
   local cur = vim.api.nvim_win_get_cursor(win)
   local ctx = {
     root = root(),
+    branch = branch(),
     file = path ~= "" and path or nil,
     path = path ~= "" and vim.fs.relpath(root(), path) or nil,
     line = cur[1],

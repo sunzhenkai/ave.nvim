@@ -226,6 +226,7 @@ if (sub === "hook") {
         "This server is attached to the user's Neovim session.",
         "Prefer editor_lsp over grep when you need a definition or all references: it uses the language server the user already has.",
         "Call editor_context before answering questions about 'this file', 'the current selection', or 'where the user is'.",
+        "Work off the files already on disk in the workspace on its current git branch: never copy them to a temp directory or check out another revision to make line numbers match, and mention the difference in a block's note instead.",
         "When you locate an implementation the user asked about, call editor_open so the editor follows you instead of pasting code.",
         "Pass snippet (one stable unique line of code) together with line; it survives edits and tells you when a line number went stale.",
         "For a single lookup, call editor_open; those hops become the shared exploration path the user can step through with explore_path back/forward.",
@@ -237,7 +238,7 @@ if (sub === "hook") {
 
   server.tool(
     "editor_context",
-    "Current Neovim state: file, cursor, visual selection, filetype, workspace root.",
+    "Current Neovim state: file, cursor, visual selection, filetype, workspace root, git branch.",
     {},
     () => run("editor.context", {}),
   );
