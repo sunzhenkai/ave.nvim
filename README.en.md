@@ -90,6 +90,7 @@ Default keys (installed by `setup()`, no `:Ave` needed first; override them in `
 | `<leader>ag` | Next tour block; `3<leader>ag` jumps to block 3 (prompts for a number without a count) |
 | `<leader>as` | Send the selection (or cursor line) to the agent terminal as `@file:Lx-Ly` |
 | `Esc` (in panel) | Passed to the agent as-is (interrupt/cancel); the plugin never intercepts it |
+| `Ctrl-n` / `F2` (in panel) | Single key back to normal mode (`Ctrl-[` is the same byte as `Esc`, so it cannot be used) |
 | `Ctrl-\ Ctrl-N` (in panel) | Back to normal mode |
 | `Ctrl-h/j/k/l` (in panel) | Move across windows without leaving terminal-mode first |
 | `i` / `a` (panel normal mode) | Back to the agent input |
@@ -98,7 +99,7 @@ Tour and path are two different things: the path is an automatically pushed hist
 
 The agent side needs no manual setup: `ave` registers its MCP server the way each agent expects (see [docs/agents.md](docs/agents.md)).
 
-`Esc` inside the panel is never taken by Neovim: the agent uses it to interrupt. Move windows with `Ctrl-h/j/k/l` and enter normal mode with `Ctrl-\ Ctrl-N`. If you really want the old double-`Esc` behaviour, set `esc_double = true` (the cost is that the first press has already reached the agent, so the interrupt still happens).
+`Esc` inside the panel is never taken by Neovim: the agent uses it to interrupt. Get back to normal mode with `Ctrl-n` or `F2` (one keystroke) and move windows with `Ctrl-h/j/k/l`. `Ctrl-[` looks like a separate key, but it is `Esc` down at the byte level (both are `0x1b`), so pressing it in the panel only interrupts the agent. If you really want the old double-`Esc` behaviour, set `esc_double = true` (the cost is that the first press has already reached the agent, so the interrupt still happens).
 
 ## Configuration
 

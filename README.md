@@ -94,6 +94,7 @@ require("ave").setup({ keys = { toggle = "<leader>cA", send = "<leader>cS" } })
 | `<leader>ag` | 导览下一块；`3<leader>ag` 直达第 3 块（无计数时提示输入） |
 | `<leader>as` | 把当前选区（或光标行）以 `@file:Lx-Ly` 送进 Agent 终端 |
 | `Esc`（面板内） | 原样送给 Agent（打断/取消），插件不拦截 |
+| `Ctrl-n` / `F2`（面板内） | 单击回 normal mode（`Ctrl-[` 等于 `Esc` 同一个字节，用不了） |
 | `Ctrl-\ Ctrl-N`（面板内） | 回到 normal mode |
 | `Ctrl-h/j/k/l`（面板内） | 直接跨窗口，不用先退 terminal-mode |
 | `i` / `a`（面板 normal） | 回到 Agent 输入 |
@@ -103,8 +104,9 @@ tour 是 Agent 先问过你、再一次性推送的线性脚本。导览激活�
 
 Agent 侧无需手动配置，`ave` 会按 Agent 自己的方式注册 MCP server（见 [docs/agents.md](docs/agents.md)）。
 
-面板里的 `Esc` 不给 Neovim 抢：Agent 靠它中断任务。要挪窗口按 `Ctrl-h/j/k/l`，
-要进 normal mode 按 `Ctrl-\ Ctrl-N`。真想要双击 `Esc` 的老行为，就开 `esc_double = true`
+面板里的 `Esc` 不给 Neovim 抢：Agent 靠它中断任务。回 normal mode 按 `Ctrl-n` 或 `F2`（一次键），
+挪窗口按 `Ctrl-h/j/k/l`。`Ctrl-[` 看着像个独立键，但它在字节层面就是 `Esc`（都是 `0x1b`），
+所以在面板里按下只会打断 Agent。真想要双击 `Esc` 的老行为，就开 `esc_double = true`
 （代价是第一下已经发给 Agent 了，打断还是会先发生）。
 
 ## 配置

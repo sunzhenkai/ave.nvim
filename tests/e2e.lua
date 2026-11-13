@@ -143,8 +143,10 @@ do
   local buf = vim.api.nvim_create_buf(false, true)
   L.map_term(buf, job, {})
   local n = #vim.api.nvim_buf_get_keymap(buf, "t")
-  check("panel term keys mapped", n == 5, n)
+  check("panel term keys mapped", n == 7, n)
   check("panel key handler runs", L.__test_key("<Esc>"))
+  check("panel C-n returns to normal", L.__test_key("<C-n>"))
+  check("panel F2 returns to normal", L.__test_key("<F2>"))
   vim.wait(800, function()
     return #got > 0
   end)

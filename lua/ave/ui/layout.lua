@@ -43,14 +43,22 @@ local term_keys = {}
 function M.map_term(buf, job, spec)
   spec = spec or {}
   term_keys = {}
+  -- 回 normal mode 的单击入口：<C-\><C-n> 要两个 chord 太慢。
+  -- <C-n> 位置顺手；<F2> 跟 agent 无冲突、任何终端都能送达，两个都留
+  local function leave()
+    vim.api.nvim_feedkeys(LEAVE, "n", false)
+  end
+  term_keys["<C-n>"] = leave
+  term_keys["<F2>"] = leave
   -- Esc 只做打断：agent 拿它中断输出，拦截它就是抢用户的键。
-  -- 要回 normal mode 按 <C-\><C-n>；要离开面板直接 <C-h/j/k/l>。
+  -- Ctrl+[ 与 Esc 是同一个字节 0x1b，没法当回 normal 的键用。
+  -- 要离开面板直接 <C-h/j/k/l>。
   term_keys["<Esc>"] = function()
     if spec.esc_double then
       local now = vim.uv.now()
       if last_esc > 0 and now - last_esc < 300 then
         last_esc = 0
-        vim.api.nvim_feedkeys(LEAVE, "n", false)
+        leave()
         return
       end
       last_esc = now
