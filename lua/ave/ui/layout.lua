@@ -212,6 +212,17 @@ function M.send(text)
 end
 
 function M.focus()
+  -- 全屏时面板 buffer 在独立 tab 里，state.win 还指着原来的分屏，直接过去会跑回小窗
+  if M.is_full() then
+    pcall(vim.api.nvim_set_current_tabpage, state.full_tab)
+    for _, w in ipairs(vim.api.nvim_tabpage_list_wins(state.full_tab)) do
+      if vim.api.nvim_win_get_buf(w) == state.buf then
+        vim.api.nvim_set_current_win(w)
+        return
+      end
+    end
+    return
+  end
   if valid_win(state.win) then
     vim.api.nvim_set_current_win(state.win)
   end

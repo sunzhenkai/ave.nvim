@@ -1,4 +1,6 @@
 local M = {}
+-- 定义在下面，键位回调里要用
+local send_text
 
 local function plugin_root()
   local f = vim.api.nvim_get_runtime_file("lua/ave/init.lua", false)[1]
@@ -17,7 +19,7 @@ function M.register_commands()
   end, {
     nargs = "*",
     complete = function()
-      return { "open", "pick", "close", "toggle", "stop", "status", "install", "back", "forward", "path", "send", "full", "tour", "goto" }
+      return { "open", "pick", "close", "toggle", "stop", "status", "install", "back", "forward", "path", "send", "ref", "full", "tour", "goto" }
     end,
     desc = "ave: native agent panel",
   })
@@ -70,15 +72,36 @@ function M.setup(opts)
       { cfg.keys.back, "back", "ave: path back" },
       { cfg.keys.forward, "forward", "ave: path forward" },
       { cfg.keys.path, "path", "ave: path list" },
-      { cfg.keys.send, "send", "ave: send selection to agent" },
       { cfg.keys.full, "full", "ave: agent panel fullscreen" },
-
+      { cfg.keys.ref, "ref", "ave: send file:line reference to agent" },
     }
     for _, b in ipairs(binds) do
       if b[1] then
         vim.keymap.set("n", b[1], function()
           M.dispatch({ b[2] })
         end, { desc = b[3] })
+      end
+    end
+    -- 引用式在 visual 下也要能用
+    if cfg.keys.ref then
+      vim.keymap.set("x", cfg.keys.ref, function()
+        M.dispatch({ "ref" })
+      end, { desc = "ave: send file:line reference to agent" })
+    end
+    -- 选区原文：visual 发选中的行，normal 发当前行；send_focus 发完切到面板
+    for _, s in ipairs({
+      { cfg.keys.send, false, "ave: send text to agent" },
+      { cfg.keys.send_focus, true, "ave: send text and focus agent" },
+    }) do
+      if s[1] then
+        for _, mode in ipairs({ "n", "x" }) do
+          vim.keymap.set(mode, s[1], function()
+            local res, err = send_text(mode == "x", s[2])
+            if not res then
+              notify(tostring(err), vim.log.levels.WARN)
+            end
+          end, { desc = s[3] })
+        end
       end
     end
     -- 计数前缀直接跳块：3<leader>ag；不带计数就提示输入
@@ -96,6 +119,56 @@ end
 
 local function notify(msg, level)
   vim.notify("ave: " .. msg, level or vim.log.levels.INFO)
+end
+
+-- 选区原样文本（按整行取）；visual=false 时只取光标所在行
+local function selected_text(visual)
+  local buf = vim.api.nvim_get_current_buf()
+  local first, last
+  if visual then
+    local s = vim.api.nvim_buf_get_mark(buf, "<")
+    local e = vim.api.nvim_buf_get_mark(buf, ">")
+    if s[1] > 0 and e[1] >= s[1] then
+      first, last = s[1], e[1]
+    end
+  end
+  first = first or vim.api.nvim_win_get_cursor(0)[1]
+  last = last or first
+  local text = table.concat(vim.api.nvim_buf_get_lines(buf, first - 1, last, false), "\n")
+  if text:gsub("%s", "") == "" then
+    return nil, "selection is empty"
+  end
+  return text
+end
+
+-- bracketed paste 上限：再大就糊不进 TUI 了，也更该用引用式
+local MAX_LINES = 200
+
+-- 把选区原文贴进 agent 输入框；focus=true 时切过去并进输入模式（都不回车）
+function send_text(visual, focus)
+  local layout = require("ave.ui.layout")
+  if not layout.is_open() then
+    return nil, "agent is not running"
+  end
+  local text, err = selected_text(visual)
+  if not text then
+    return nil, err
+  end
+  local lines = select(2, text:gsub("\n", "")) + 1
+  if lines > MAX_LINES then
+    return nil, ("selection too large (%d lines > %d), use %s"):format(lines, MAX_LINES, require("ave.config").get().keys.ref)
+  end
+  -- 文本里的 ESC 会提前截断 paste 边界、或触发控制序列，必须剥掉
+  text = text:gsub("\27", "")
+  local ok, serr = layout.send("\27[200~" .. text .. "\27[201~")
+  if not ok then
+    return nil, serr
+  end
+  if focus then
+    layout.focus()
+    vim.cmd("startinsert")
+  end
+  return true
 end
 
 -- 把选区（或当前行）变成 "@相对路径:Lx-Ly " 粘进 agent 输入框，不自动回车
@@ -179,6 +252,11 @@ function M.dispatch(args)
       notify(("%s %d/%d "):format(sub, res.index, res.total) .. vim.fn.fnamemodify(res.file, ":t"), vim.log.levels.INFO)
     end
   elseif sub == "send" then
+    local res, err = send_text(false, args[2] == "focus")
+    if not res then
+      notify(tostring(err), vim.log.levels.WARN)
+    end
+  elseif sub == "ref" then
     local res, err = send_selection()
     if not res then
       notify(tostring(err), vim.log.levels.WARN)
@@ -238,5 +316,8 @@ function M.dispatch(args)
     notify("unknown subcommand: " .. sub, vim.log.levels.ERROR)
   end
 end
+
+-- 测试用：视觉路径没法从命令走
+M.__test_send = send_text
 
 return M

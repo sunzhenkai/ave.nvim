@@ -129,6 +129,24 @@ do
   require("ave").setup({})
 end
 
+-- 键位真的挂上了：visual 三个发送键、normal 两个
+do
+  -- nvim_get_keymap 里的 lhs 已经展开成实际按键（<leader> 会变成逗号/反斜杠）
+  local function has_map(mode, lhs)
+    local want = vim.api.nvim_replace_termcodes(lhs, true, false, true)
+    for _, m in ipairs(vim.api.nvim_get_keymap(mode)) do
+      if m.lhs == want then
+        return true
+      end
+    end
+    return false
+  end
+  check("visual send mapped", has_map("x", "<leader>as"))
+  check("visual send_focus mapped", has_map("x", "<leader>aS"))
+  check("visual ref mapped", has_map("x", "<leader>aR"))
+  check("normal send mapped", has_map("n", "<leader>as"))
+end
+
 -- 面板键位：Esc 只透传给 agent，跨窗口用 <C-h/j/k/l>
 do
   local L = require("ave.ui.layout")
@@ -154,6 +172,62 @@ do
   check("esc reaches agent", table.concat(got, ""):find("\27", 1, true) ~= nil, vim.inspect(got))
   pcall(vim.fn.jobstop, job)
   pcall(vim.api.nvim_buf_delete, buf, { force = true })
+end
+
+-- 选区原文：包 bracketed paste、剥 ESC、超上限拒发、可选切到面板
+do
+  local L = require("ave.ui.layout")
+  local A = require("ave")
+  local got = {}
+  local job = vim.fn.jobstart({ "cat" }, {
+    on_stdout = function(_, data)
+      for _, d in ipairs(data) do
+        got[#got + 1] = d
+      end
+    end,
+  })
+  -- 面板窗口放终端 buffer，工作窗口放有内容的选择源，焦点留在工作窗口
+  local panel_buf = vim.api.nvim_create_buf(false, true)
+  local fbuf = vim.api.nvim_create_buf(false, true)
+  vim.cmd("vsplit")
+  local panel = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(panel, panel_buf)
+  local work = vim.fn.win_getid(vim.fn.winnr("#"))
+  vim.api.nvim_win_set_buf(work, fbuf)
+  vim.api.nvim_set_current_win(work)
+  -- 第二行放一个真 ESC 字节，验证发送前被剥掉
+  vim.api.nvim_buf_set_lines(fbuf, 0, -1, false, { "local a = 1", 'local b = "\27[201~"', "local c = 3" })
+  L.map_term(panel_buf, job, {})
+  L.__test_attach(panel_buf, work, job, panel)
+  vim.api.nvim_buf_set_mark(fbuf, "<", 1, 0, {})
+  vim.api.nvim_buf_set_mark(fbuf, ">", 3, 0, {})
+  check("send visual returns ok", A.__test_send(true, false) == true)
+  vim.wait(800, function()
+    return #got > 0
+  end)
+  local s = table.concat(got, "\n")
+  check("send wrapped in paste", s:find("\27[200~", 1, true) ~= nil and s:find("\27[201~", 1, true) ~= nil, vim.inspect(s))
+  check("send strips esc", select(2, s:gsub("\27", "")) == 2, select(2, s:gsub("\27", "")))
+  check("send keeps all lines", s:find("local c = 3", 1, true) ~= nil, vim.inspect(s))
+
+  local huge = {}
+  for i = 1, 250 do
+    huge[i] = "line " .. i
+  end
+  vim.api.nvim_buf_set_lines(fbuf, 0, -1, false, huge)
+  vim.api.nvim_buf_set_mark(fbuf, ">", 250, 0, {})
+  local res, err = A.__test_send(true, false)
+  check("send refuses huge selection", res == nil and tostring(err):find("too large", 1, true) ~= nil, tostring(err))
+
+  vim.api.nvim_buf_set_mark(fbuf, ">", 3, 0, {})
+  check("send focus returns ok", A.__test_send(true, true) == true)
+  check("send focus moves to panel", vim.api.nvim_get_current_win() == panel)
+  vim.cmd("stopinsert")
+  pcall(vim.fn.jobstop, job)
+  pcall(vim.api.nvim_buf_delete, panel_buf, { force = true })
+  pcall(vim.api.nvim_buf_delete, fbuf, { force = true })
+  pcall(vim.api.nvim_win_close, panel, true)
+  L.__test_detach()
 end
 
 -- 业务导览：块列表、前后跳、指定块、解释贴在编辑区

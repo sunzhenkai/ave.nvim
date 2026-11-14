@@ -10,7 +10,7 @@ M.defaults = {
   node = "node",
   helper = nil,
   socket_dir = nil,
-  keys = { toggle = "<leader>aa", back = "<leader>a[", forward = "<leader>a]", path = "<leader>al", send = "<leader>as", full = "<leader>aF", jump = "<leader>ag" },
+  keys = { toggle = "<leader>aa", back = "<leader>a[", forward = "<leader>a]", path = "<leader>al", send = "<leader>as", send_focus = "<leader>aS", ref = "<leader>aR", full = "<leader>aF", jump = "<leader>ag" },
   agents = {
     claude = { cmd = { "claude" } },
     codex = { cmd = { "codex" } },

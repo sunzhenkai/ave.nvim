@@ -76,6 +76,8 @@ require("ave").setup({ keys = { toggle = "<leader>cA", send = "<leader>cS" } })
 :Ave back             " 沿探索路径后退一步
 :Ave forward          " 前进一步
 :Ave path             " 路径扔进 loclist，可跳选
+:Ave send             " 把当前行原文贴进 Agent（:Ave send focus 贴完切过去）
+:Ave ref              " 把 @file:Lx-Ly 引用贴进 Agent
 :Ave full             " 面板全屏 / 退出全屏
 :Ave tour             " 重开当前业务导览的块列表
 :Ave tour off         " 收起导览
@@ -92,7 +94,9 @@ require("ave").setup({ keys = { toggle = "<leader>cA", send = "<leader>cS" } })
 | `<leader>al` | 路径 loclist |
 | `<leader>aF` | 面板全屏（独立 tab，原分屏布局不动） |
 | `<leader>ag` | 导览下一块；`3<leader>ag` 直达第 3 块（无计数时提示输入） |
-| `<leader>as` | 把当前选区（或光标行）以 `@file:Lx-Ly` 送进 Agent 终端 |
+| `<leader>as` | 把选中的行原文贴进 Agent 输入框，焦点留在编辑器（normal 下取当前行） |
+| `<leader>aS` | 同上，贴完切到面板并进输入模式（不自动回车） |
+| `<leader>aR` | 送 `@file:Lx-Ly` 引用，让 Agent 自己去读文件 |
 | `Esc`（面板内） | 原样送给 Agent（打断/取消），插件不拦截 |
 | `Ctrl-n` / `F2`（面板内） | 单击回 normal mode（`Ctrl-[` 等于 `Esc` 同一个字节，用不了） |
 | `Ctrl-\ Ctrl-N`（面板内） | 回到 normal mode |
