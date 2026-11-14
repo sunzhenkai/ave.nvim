@@ -145,6 +145,8 @@ do
   check("visual send_focus mapped", has_map("x", "<leader>aS"))
   check("visual ref mapped", has_map("x", "<leader>aR"))
   check("normal send mapped", has_map("n", "<leader>as"))
+  check("visual ask mapped", has_map("x", "<leader>aq"))
+  check("normal ask mapped", has_map("n", "<leader>aq"))
 end
 
 -- 面板键位：Esc 只透传给 agent，跨窗口用 <C-h/j/k/l>
@@ -228,6 +230,28 @@ do
   pcall(vim.api.nvim_buf_delete, fbuf, { force = true })
   pcall(vim.api.nvim_win_close, panel, true)
   L.__test_detach()
+end
+
+-- 临时 agent 浮窗：隐藏不退出、唤回、退出自动收尾
+if vim.fn.executable("claude") == 1 then
+  local E = require("ave.agent.ephemeral")
+  local ok = E.ask({ question = "test question" })
+  check("ephemeral ask starts", ok == true, tostring(ok))
+  check("ephemeral is running", E.is_running())
+  local win = vim.api.nvim_get_current_win()
+  check("ephemeral window is float", vim.api.nvim_win_get_config(win).relative ~= "", vim.inspect(vim.api.nvim_win_get_config(win)))
+  E.hide()
+  check("ephemeral hidden window closed", not vim.api.nvim_win_is_valid(win))
+  check("ephemeral still running after hide", E.is_running())
+  -- 唤回：ask() 不带 question 且 agent 还在跑
+  E.ask({})
+  check("ephemeral re-shown", vim.api.nvim_get_current_win() ~= win and vim.api.nvim_win_get_config(vim.api.nvim_get_current_win()).relative ~= "")
+  -- 退出：jobstop 触发 on_exit → cleanup
+  E.close()
+  vim.wait(500, function() return not E.is_running() end)
+  check("ephemeral closed", not E.is_running())
+else
+  io.stdout:write("skip ephemeral tests (no claude)\n")
 end
 
 -- 业务导览：块列表、前后跳、指定块、解释贴在编辑区

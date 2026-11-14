@@ -1,6 +1,7 @@
 local M = {}
 -- 定义在下面，键位回调里要用
 local send_text
+local ask_question
 
 local function plugin_root()
   local f = vim.api.nvim_get_runtime_file("lua/ave/init.lua", false)[1]
@@ -19,7 +20,7 @@ function M.register_commands()
   end, {
     nargs = "*",
     complete = function()
-      return { "open", "pick", "close", "toggle", "stop", "status", "install", "back", "forward", "path", "send", "ref", "full", "tour", "goto" }
+      return { "open", "pick", "close", "toggle", "stop", "status", "install", "back", "forward", "path", "send", "ref", "full", "tour", "goto", "ask", "askhide" }
     end,
     desc = "ave: native agent panel",
   })
@@ -88,6 +89,14 @@ function M.setup(opts)
         M.dispatch({ "ref" })
       end, { desc = "ave: send file:line reference to agent" })
     end
+    -- 临时 agent：输入问题，弹浮窗，问完退出
+    if cfg.keys.ask then
+      for _, mode in ipairs({ "n", "x" }) do
+        vim.keymap.set(mode, cfg.keys.ask, function()
+          ask_question(mode == "x")
+        end, { desc = "ave: ask ephemeral agent" })
+      end
+    end
     -- 选区原文：visual 发选中的行，normal 发当前行；send_focus 发完切到面板
     for _, s in ipairs({
       { cfg.keys.send, false, "ave: send text to agent" },
@@ -139,6 +148,27 @@ local function selected_text(visual)
     return nil, "selection is empty"
   end
   return text
+end
+
+-- 输入问题，启动临时 agent 浮窗
+function ask_question(visual)
+  local selected = ""
+  if visual then
+    local text = selected_text(visual)
+    if text then
+      selected = "\n\n```\n" .. text .. "\n```"
+    end
+  end
+  vim.ui.input({ prompt = "问临时 agent: " }, function(input)
+    if not input or input == "" then
+      return
+    end
+    local question = input .. selected
+    local ok, err = require("ave.agent.ephemeral").ask({ question = question })
+    if not ok then
+      notify(tostring(err), vim.log.levels.ERROR)
+    end
+  end)
 end
 
 -- bracketed paste 上限：再大就糊不进 TUI 了，也更该用引用式
@@ -286,6 +316,10 @@ function M.dispatch(args)
       return notify(tostring(err), vim.log.levels.WARN)
     end
     notify(("tour %d/%d "):format(res.index, res.total) .. vim.fn.fnamemodify(res.file, ":t"), vim.log.levels.INFO)
+  elseif sub == "ask" then
+    ask_question(false)
+  elseif sub == "askhide" then
+    require("ave.agent.ephemeral").hide()
   elseif sub == "full" then
     local full, err = require("ave.ui.layout").toggle_full()
     if full == nil then
@@ -319,5 +353,6 @@ end
 
 -- 测试用：视觉路径没法从命令走
 M.__test_send = send_text
+M.__test_ask = ask_question
 
 return M

@@ -78,6 +78,8 @@ require("ave").setup({ keys = { toggle = "<leader>cA", send = "<leader>cS" } })
 :Ave path             " 路径扔进 loclist，可跳选
 :Ave send             " 把当前行原文贴进 Agent（:Ave send focus 贴完切过去）
 :Ave ref              " 把 @file:Lx-Ly 引用贴进 Agent
+:Ave ask              " 问临时 agent：输入问题，弹浮窗（q 隐藏，退出自动关）
+:Ave askhide          " 隐藏临时 agent 浮窗（agent 继续跑）
 :Ave full             " 面板全屏 / 退出全屏
 :Ave tour             " 重开当前业务导览的块列表
 :Ave tour off         " 收起导览
@@ -97,6 +99,8 @@ require("ave").setup({ keys = { toggle = "<leader>cA", send = "<leader>cS" } })
 | `<leader>as` | 把选中的行原文贴进 Agent 输入框，焦点留在编辑器（normal 下取当前行） |
 | `<leader>aS` | 同上，贴完切到面板并进输入模式（不自动回车） |
 | `<leader>aR` | 送 `@file:Lx-Ly` 引用，让 Agent 自己去读文件 |
+| `<leader>aq` | 问临时 agent：输入问题，弹浮窗（visual 下带选区原文），退出后浮窗自动关闭 |
+| 浮窗里 `q` | 隐藏浮窗，agent 继续跑（再按 `<leader>aq` 唤回） |
 | `Esc`（面板内） | 原样送给 Agent（打断/取消），插件不拦截 |
 | `Ctrl-n` / `F2`（面板内） | 单击回 normal mode（`Ctrl-[` 等于 `Esc` 同一个字节，用不了） |
 | `Ctrl-\ Ctrl-N`（面板内） | 回到 normal mode |

@@ -74,6 +74,8 @@ require("ave").setup({ keys = { toggle = "<leader>cA", send = "<leader>cS" } })
 :Ave path             " dump the path into a loclist
 :Ave send             " paste the current line into the agent (:Ave send focus also jumps there)
 :Ave ref              " paste an @file:Lx-Ly reference
+:Ave ask              " ask ephemeral agent: type question, popup float (q to hide, auto-close on exit)
+:Ave askhide          " hide ephemeral agent float (agent keeps running)
 :Ave full             " fullscreen the panel / leave fullscreen
 :Ave tour             " reopen the current tour's block list
 :Ave tour off         " clear the tour
@@ -93,6 +95,8 @@ Default keys (installed by `setup()`, no `:Ave` needed first; override them in `
 | `<leader>as` | Paste the selected lines into the agent prompt, focus stays in the editor (cursor line in normal mode) |
 | `<leader>aS` | Same, then jump to the panel in terminal mode (no auto-submit) |
 | `<leader>aR` | Send an `@file:Lx-Ly` reference and let the agent read the file itself |
+| `<leader>aq` | Ask ephemeral agent: type a question, popup float (with selection in visual), closes on exit |
+| `q` in float | Hide the float, agent keeps running (press `<leader>aq` to bring it back) |
 | `Esc` (in panel) | Passed to the agent as-is (interrupt/cancel); the plugin never intercepts it |
 | `Ctrl-n` / `F2` (in panel) | Single key back to normal mode (`Ctrl-[` is the same byte as `Esc`, so it cannot be used) |
 | `Ctrl-\ Ctrl-N` (in panel) | Back to normal mode |
