@@ -223,15 +223,13 @@ if (sub === "hook") {
     { name: "ave", version: "0.1.0" },
     {
       instructions: [
-        "This server is attached to the user's Neovim session.",
+        "This server is attached to the user's Neovim session. Do not operate the editor by default: ordinary file reads, searches, edits, and multi-file analysis are not reasons to call editor_open or editor_tour.",
         "Prefer editor_lsp over grep when you need a definition or all references: it uses the language server the user already has.",
         "Call editor_context before answering questions about 'this file', 'the current selection', or 'where the user is'.",
+        "Use editor_open only when the user asks to open, jump, or follow, or when the task clearly needs the editor's current position, selection, or code view. Pass snippet (one stable unique line of code) together with line; it survives edits and tells you when a line number went stale.",
+        "Use editor_tour once only when the user asks for a walkthrough, or when a multi-file flow clearly benefits from reading ordered code blocks; a request to explain or summarize alone is not enough. Read first, then send the complete ordered list (file, line or line range, one or two sentences of explanation) instead of narrating each hop. Only if the list is too long for one call, append the remaining blocks.",
+        "Explicit prohibitions take precedence: if the user says not to use ave, call no ave tools; if the user only forbids opening the editor or a walkthrough, avoid visible editor operations while read-only editor_context and editor_lsp remain allowed.",
         "Work off the files already on disk in the workspace on its current git branch: never copy them to a temp directory or check out another revision to make line numbers match, and mention the difference in a block's note instead.",
-        "When you locate an implementation the user asked about, call editor_open so the editor follows you instead of pasting code.",
-        "Pass snippet (one stable unique line of code) together with line; it survives edits and tells you when a line number went stale.",
-        "For a single lookup, call editor_open; those hops become the shared exploration path the user can step through with explore_path back/forward.",
-        "For a business flow or call chain that spans several files, do NOT walk it hop by hop and do NOT stop to confirm each step: read whatever you need first, then call editor_tour ONCE with the complete ordered list of blocks (file, line or line range, one or two sentences of explanation). The user steps through the list with their own keys; chatting the steps out one at a time is the failure mode.",
-        "If you genuinely cannot order the blocks without more information, say what is missing in one message. Only if the list is too long to produce at once, send it in a few calls with append=true instead of asking per block.",
       ].join(" "),
     },
   );
@@ -245,7 +243,7 @@ if (sub === "hook") {
 
   server.tool(
     "editor_open",
-    "Open a file in the user's editor window and put the cursor on a line. Set focus=false (default) to keep the user's cursor where it is.",
+    "Open a file when the user asks for editor navigation or the task clearly needs the code view. Set focus=false (default) to keep the user's cursor where it is.",
     {
       file: z.string().describe("Absolute path, or path relative to the workspace root"),
       line: z.number().int().positive().optional().describe("1-based target line"),
@@ -296,7 +294,7 @@ if (sub === "hook") {
 
   server.tool(
     "editor_tour",
-    "Show a business-flow walkthrough in the editor: one loclist of blocks plus each block's explanation pinned above its code. Send the whole ordered list in one call; the user navigates it with keys, so do not narrate or confirm block by block.",
+    "Show a walkthrough when requested or clearly useful for reading an ordered multi-file flow: one loclist of blocks plus explanations pinned above the code. Send the whole ordered list in one call; do not narrate or confirm block by block.",
     {
       title: z.string().optional().describe("Short name of the flow, e.g. '下单校验链路'"),
       append: z

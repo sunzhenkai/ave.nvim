@@ -26,6 +26,11 @@ const transport = new StdioClientTransport({
 });
 const client = new Client({ name: "ave-e2e", version: "0" });
 await client.connect(transport);
+const instructions = client.getInstructions() ?? "";
+check("instructions default to no editor operation", instructions.includes("Do not operate the editor by default"), instructions);
+check("instructions allow implicit editor needs", instructions.includes("clearly needs the editor's current position"), instructions);
+check("instructions allow implicit tour needs", instructions.includes("clearly benefits from reading ordered code blocks"), instructions);
+check("instructions honor explicit refusal", instructions.includes("Explicit prohibitions take precedence"), instructions);
 
 const call = async (name, args = {}) => {
   const res = await client.callTool({ name, arguments: args });

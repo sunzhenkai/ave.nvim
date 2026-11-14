@@ -13,9 +13,9 @@ nvim ── UDS(JSON-RPC/NDJSON) ── node bridge-helper ── MCP(stdio) ─
 `0.1.0`: layout + terminal + bridge + `editor_context` / `editor_open` / `editor_highlight` / `explore_path` / `editor_lsp` / `editor_tour`, with a connection shim for all three agents.
 
 - The exploration path stack works and is persisted per workspace (`stdpath("state")/ave/path-<hash>.json`), so it survives an nvim restart.
-- Claude Code follows passively: a `PostToolUse` hook pushes every file it reads or edits onto the path without the agent calling any tool.
-- Guided tour: the agent sends one ordered list of blocks (file + line range + explanation) in a single call; you step through them, and `3<leader>ag` jumps straight to block 3.
-- Codex only ever calls tools explicitly; Pi needs `:Ave install pi` and has no passive channel.
+- Editor integration is on demand: ordinary file reads and edits do not open files, and explicit requests not to use ave or operate the editor take precedence.
+- Guided tour: when a walkthrough is needed, the agent sends one ordered list of blocks (file + line range + explanation) in a single call; you step through them, and `3<leader>ag` jumps straight to block 3.
+- All three agents operate the editor only through explicit tool calls; Pi needs `:Ave install pi` first.
 
 ## Install
 
@@ -103,7 +103,9 @@ Default keys (installed by `setup()`, no `:Ave` needed first; override them in `
 | `Ctrl-h/j/k/l` (in panel) | Move across windows without leaving terminal-mode first |
 | `i` / `a` (panel normal mode) | Back to the agent input |
 
-Tour and path are two different things: the path is an automatically pushed history (including Claude's passive hook), the tour is a linear script the agent pushes once after asking you. While a tour is active, `<leader>a[` / `<leader>a]` walk the tour; otherwise they walk the path.
+Tour and path are two different things: the path records explicit `editor_open` jumps, while the tour is a linear script the agent pushes once when needed. While a tour is active, `<leader>a[` / `<leader>a]` walk the tour; otherwise they walk the path.
+
+Ask to “open the implementation of xxx in the editor” for a jump, or “create a walkthrough” / “walk me through the xxx flow with the code” for a tour. “Explain the xxx logic” normally produces text only; explicit requests not to use ave or operate the editor take precedence.
 
 The agent side needs no manual setup: `ave` registers its MCP server the way each agent expects (see [docs/agents.md](docs/agents.md)).
 

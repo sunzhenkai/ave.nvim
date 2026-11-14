@@ -87,16 +87,15 @@ pyright 有个坑：nvim 0.12 + pyright 1.1.401 下 `initialize`/`initialized`/`
 发起 `textDocument/diagnostic` 后再无响应，之后所有请求（包括 `buf_request` 发出的）全部超时。
 所以测试用 clangd 做 LSP 端到端，不在项目里做绕过。
 
-## 被动跟随
+## 主动触发
 
-Agent 主动调 `editor_open` 是「拉」；「推」这条通道按 Agent 各自实现：
+所有可见编辑器操作都由 Agent 主动调用 MCP 工具产生；普通 `Read` / `Edit` / `Write` 不注册
+被动跟随 hook，也不会自动发 `editor.open`。
 
-- **Claude Code**：启动时写一份临时 `settings.json`，注册 `PostToolUse` hook
-  （`matcher: Read|Edit|Write|MultiEdit|NotebookEdit`），hook 进程把 `tool_input.file_path` 通过同一个
-  socket 发 `editor.open`。hook 继承了 `WORKBENCH_SOCKET`，所以不用额外传参。失败静默、2 秒超时、
-  不阻塞 Agent。
-- **Codex**：没有等价的 hook 接口，只有主动工具调用。
-- **Pi**：没找到 hook 机制，暂不接。
+触发边界随各 Agent 的高优先级提示词和 MCP instructions 注入：`editor_open` 用于明确的打开、
+跳转、跟随需求，或明显需要结合编辑器当前位置、选区、代码视图的任务；`editor_tour` 用于走读需求，
+或明显适合按有序代码块阅读的跨文件流程。单纯解释、总结和普通跨文件分析不必然触发。
+用户明确禁止使用 ave 或可见编辑器操作时，禁止规则优先。
 
 ## 全屏
 

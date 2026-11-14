@@ -15,9 +15,9 @@ nvim ── UDS(JSON-RPC/NDJSON) ── node bridge-helper ── MCP(stdio) ─
 `0.1.0`：布局 + 终端 + 桥 + `editor_context` / `editor_open` / `editor_highlight` / `explore_path` / `editor_lsp` / `editor_tour`，三个 Agent 的接入壳都有。
 
 - 探索路径栈可用，按工作区落盘（`stdpath("state")/ave/path-<hash>.json`），重开 nvim 能接着走。
-- Claude Code 有被动跟随（`PostToolUse` hook 把自己的读写自动压进路径），不依赖 Agent 主动调工具。
-- 业务导览（tour）：Agent 一次给出排好序的跳转块（文件 + 行范围 + 解释），人按块往前走，`3<leader>ag` 直达第 3 块。
-- Codex 只走主动工具调用；Pi 需要 `:Ave install pi`，且没有被动通道。
+- 编辑器联动按需触发：普通文件读写不会自动打开文件，明确禁止 ave 或编辑器操作时优先遵守。
+- 业务导览（tour）：需要走读时，Agent 一次给出排好序的跳转块（文件 + 行范围 + 解释），人按块往前走，`3<leader>ag` 直达第 3 块。
+- 三个 Agent 都只通过主动工具调用操作编辑器；Pi 需要先运行 `:Ave install pi`。
 
 ## 安装
 
@@ -107,8 +107,11 @@ require("ave").setup({ keys = { toggle = "<leader>cA", send = "<leader>cS" } })
 | `Ctrl-h/j/k/l`（面板内） | 直接跨窗口，不用先退 terminal-mode |
 | `i` / `a`（面板 normal） | 回到 Agent 输入 |
 
-导览（tour）和探索路径（path）是两件事：path 是全自动压栈的历史（含 Claude 的被动跟随），
-tour 是 Agent 先问过你、再一次性推送的线性脚本。导览激活时 `<leader>a[` / `<leader>a]` 走导览，否则走路径。
+导览（tour）和探索路径（path）是两件事：path 是 `editor_open` 主动跳转压栈的历史，
+tour 是 Agent 按需一次性推送的线性脚本。导览激活时 `<leader>a[` / `<leader>a]` 走导览，否则走路径。
+
+可以直接说「在编辑器打开 xxx 的实现」触发跳转；说「生成走读列表」或「结合代码带我走一遍 xxx 流程」
+触发 tour。只说「梳理 xxx 逻辑」通常只输出文字；明确要求不要使用 ave 或不操作编辑器时不触发。
 
 Agent 侧无需手动配置，`ave` 会按 Agent 自己的方式注册 MCP server（见 [docs/agents.md](docs/agents.md)）。
 

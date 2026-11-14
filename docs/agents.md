@@ -19,15 +19,8 @@
 
 启动命令加 `--mcp-config <该文件> --strict-mcp-config`，避免和其他来源的 MCP 混在一起。
 
-同一目录下还写 `settings.json` 带一个 `PostToolUse` hook，实现被动跟随：
-
-```json
-{"hooks":{"PostToolUse":[{"matcher":"Read|Edit|Write|MultiEdit|NotebookEdit",
-  "hooks":[{"type":"command","command":"WORKBENCH_SOCKET='<sock>' node <helper> hook"}]}]}}
-```
-
-Agent 每次读/改文件，hook 从 stdin 拿 `tool_input.file_path`，推给编辑器跳转。实测：
-`claude -p` 读两个文件后，路径栈里正好两项。hook 失败一律静默，不阻塞 Agent。
+不写 `settings.json`，也不注册 `PostToolUse` hook。普通文件读写只服务于 Agent 自己的任务，
+不会自动让编辑器跳转；需要展示时由 Agent 主动调用 `editor_open` 或 `editor_tour`。
 
 ## codex
 
@@ -48,7 +41,7 @@ codex -c ... exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandb
 实测 `editor_context` 调用成功，回包是工作区根。stdio 握手时 codex 会打一条
 `rmcp::transport::worker ... Unexpected content type` 的 ERROR，但工具调用正常，可忽略。
 
-codex 没有 hook 机制，被动跟随做不了；只能等它的 JSONL 事件流或让 Agent 主动调 `editor_open`。
+codex 不注册 hook；需要展示时由 Agent 主动调用 `editor_open` 或 `editor_tour`。
 
 ## pi
 
@@ -68,29 +61,17 @@ tool_search tool`，工具对模型不可见。项目级 `.pi/mcp.json` 需要�
 - 无法向 Agent 的 TUI 注入「结构化消息」。需要把选区送给 Agent 时，走 `chansend` 粘贴
   `@path:Lx-Ly` 文本（仅用户主动触发，不自动提交）。
 
-## claude：MCP 工具被 deferred，必须补 system prompt
+## 工具可见性与触发边界
 
 实测（claude 2.1.32x）：即使 `--mcp-config` 已接上，ave 的工具也只是以名字出现在
-`deferred tools` 列表里，schema 没进上下文，模型要主动 `ToolSearch` 才会加载。
-同时 user skill（如 `code-explore`）的输出模板优先级高于 MCP `instructions`，
-结果是它读完一堆文件、写一份长报告，一次 ave 工具都不调。
+`deferred tools` 列表里，schema 没进上下文，需要模型用 `ToolSearch` 加载。
+同时 user skill（如 `code-explore`）的输出模板可能覆盖 MCP `instructions`，所以触发边界不能只写在
+工具描述里。
 
-对策写在 adapter 里：启动时追加 `--append-system-prompt`（优先级高于 skill），
-明确「先用 ToolSearch 加载 `mcp__ave__*`，再用一次 `editor_tour` 推代码块」。
-`lua/ave/agent/adapters/claude.lua` 的 `M.directive` 就是这段文本。
+三个 adapter 都注入 `lua/ave/agent/adapters/init.lua` 的 `M.directive`：默认只在聊天中回答，
+普通文件读写和跨文件分析不自动操作编辑器；有明确或较强的展示需求时才调用 `editor_open` /
+`editor_tour`，用户明确禁止时优先遵守。
 
-验证：同一个「用 code-explore 梳理 editor_open 到高亮的链路」提示词——
-不带该参数时工具调用只有 `Skill/Read/Bash`；带上后是
-`Skill/Read/ToolSearch/editor_tour`。真在 `:Ave open` 的 TUI 里跑，落盘 11 个 tour 块、
-15 个 hook 压栈的 path hop。
-
-codex / pi 同一个病，各自的注入方式：
-
-| agent | 注入参数 | 实测（不带 → 带） |
-|---|---|---|
-| claude | `--append-system-prompt` | `Skill/Read/Bash` → `Skill/Read/ToolSearch/editor_tour` |
-| codex | `-c 'developer_instructions="…"'`（codex 没有 system prompt 参数） | `exec_command`×21 → `exec_command`×21 + `editor_tour`×1 |
-| pi | `--append-system-prompt` | `read/fffind/bash` → `bash`×9 + `mcp__ave__editor_tour` |
-
-三份文本共用 `lua/ave/agent/adapters/init.lua` 的 `M.directive`，只有 claude 额外加一句
-「先 ToolSearch 加载 `mcp__ave__*`」（它把 MCP 工具当 deferred）。
+claude 额外通过 `--append-system-prompt` 指明：只有确需调用某个 ave 工具时才用 `ToolSearch`
+加载对应工具，否则不加载。codex 使用 `-c 'developer_instructions="…"'`，pi 使用
+`--append-system-prompt`；三者的触发规则保持一致。

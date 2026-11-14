@@ -80,7 +80,7 @@ ex.reset()
 check("load restores", ex.load() and #ex.stack == saved, #ex.stack .. "/" .. saved)
 check("load keeps index", ex.idx <= #ex.stack)
 
--- claude 适配：deferred MCP 工具需要 system prompt 兜住
+-- agent 适配：编辑器操作按需触发，普通读写不注册被动跟随
 do
   local cfg = require("ave.config").get()
   local sess = { id = "t", root = vim.fn.getcwd(), socket = "/tmp/x.sock" }
@@ -89,6 +89,12 @@ do
   check("claude loads mcp config", joined:find("--mcp%-config") ~= nil)
   check("claude carries directive", joined:find("--append%-system%-prompt") ~= nil)
   check("claude directive names tour", joined:find("editor_tour") ~= nil)
+  check("claude loads deferred tools on demand", joined:find("仅在确需调用", 1, true) ~= nil, joined)
+  check("directive defaults to chat only", joined:find("默认只在聊天中回答", 1, true) ~= nil, joined)
+  check("directive gates tour and open", joined:find("普通文件读写和跨文件分析本身不构成触发理由", 1, true) ~= nil, joined)
+  check("directive honors explicit refusal", joined:find("明确禁止优先", 1, true) ~= nil, joined)
+  check("claude disables passive follow", sess.settings == nil and joined:find("--settings", 1, true) == nil, joined)
+  check("claude writes no hook settings", vim.fn.filereadable(vim.fn.stdpath("cache") .. "/ave/session-t/settings.json") == 0)
   check("claude directive forbids copying out", joined:find("工作区外") ~= nil)
   spec.cleanup()
 
